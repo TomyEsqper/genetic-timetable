@@ -1,0 +1,102 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Panel del Coordinador</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+  <div class="max-w-6xl mx-auto p-6">
+    <!-- Logo y encabezado -->
+    <div class="flex items-center justify-between mb-8">
+      <div class="flex items-center gap-4">
+        <img src="{% static 'img/phidias.png' %}" alt="Logo Colegio" class="w-12 h-12">
+        <h1 class="text-3xl font-bold text-blue-900">Colegio San Ignacio</h1>
+      </div>
+      <p class="text-sm text-gray-500 italic">Panel de coordinación académica</p>
+    </div>
+
+    <!-- Mensajes -->
+    {% if messages %}
+      <div class="mb-4">
+        {% for message in messages %}
+          <div class="bg-green-100 text-green-800 px-4 py-2 rounded shadow">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- Tarjetas -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+
+      <!-- Cursos -->
+      <div class="bg-white rounded-lg shadow-md p-4">
+        <h2 class="text-xl font-semibold mb-2 text-blue-700">📘 Ver horario por curso</h2>
+        <ul class="space-y-1">
+          {% for curso in cursos %}
+            <li>
+              <a href="{% url 'horario_curso' curso.id %}" class="text-blue-600 hover:underline hover:font-medium">
+                {{ curso.nombre }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <!-- Profesores -->
+      <div class="bg-white rounded-lg shadow-md p-4">
+        <h2 class="text-xl font-semibold mb-2 text-green-700">👨‍🏫 Ver horario por profesor</h2>
+        <ul class="space-y-1">
+          {% for profesor in profesores %}
+            <li>
+              <a href="{% url 'horario_profesor' profesor.id %}" class="text-green-600 hover:underline hover:font-medium">
+                {{ profesor.nombre }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <!-- Aulas -->
+      <div class="bg-white rounded-lg shadow-md p-4">
+        <h2 class="text-xl font-semibold mb-2 text-purple-700">🏫 Ver horario por aula</h2>
+        <ul class="space-y-1">
+          {% for aula in aulas %}
+            <li>
+              <a href="{% url 'horario_aula' aula.id %}" class="text-purple-600 hover:underline hover:font-medium">
+                {{ aula.nombre }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Acciones -->
+    <div class="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
+
+      <a href="{% url 'descargar_excel' %}" class="bg-green-600 text-white px-6 py-3 rounded-lg shadow hover:bg-green-700 transition">
+        📥 Descargar Excel
+      </a>
+
+      <form action="{% url 'generar_horario' %}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres generar un nuevo horario? Esto reemplazará el actual.')">
+        {% csrf_token %}
+        <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-lg shadow hover:bg-red-700 transition">
+          ⚙️ Generar nuevo horario
+        </button>
+      </form>
+
+      <a href="{% url 'validar_datos' %}" class="bg-yellow-500 text-white px-6 py-3 rounded-lg shadow hover:bg-yellow-600 transition">
+        🧪 Validar datos antes de generar
+      </a>
+
+      <a href="{% url 'dashboard' %}" class="bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600 transition">
+        📊 Ver resumen del sistema
+      </a>
+
+    </div>
+  </div>
+
+</body>
+</html>
