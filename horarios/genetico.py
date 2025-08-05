@@ -2,7 +2,8 @@ import random
 from horarios.models import Curso, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, Aula, Horario, BloqueHorario
 
 DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
-BLOQUES = [b.numero for b in BloqueHorario.objects.filter(tipo='clase').order_by('numero')]
+def obtener_bloques_disponibles():
+    return [b.numero for b in BloqueHorario.objects.filter(tipo='clase').order_by('numero')]
 
 def obtener_disponibilidad(profesor):
     disponibilidad = DisponibilidadProfesor.objects.filter(profesor=profesor)
@@ -114,7 +115,7 @@ def mutar(horario):
     index = random.randint(0, len(nuevo) - 1)
     entrada = nuevo[index]
     nueva_entrada = entrada.copy()
-    nueva_entrada['bloque'] = random.choice(BLOQUES)
+    nueva_entrada['bloque'] = random.choice(obtener_bloques_disponibles())
     nueva_entrada['dia'] = random.choice(DIAS)
     nuevo[index] = nueva_entrada
     return nuevo

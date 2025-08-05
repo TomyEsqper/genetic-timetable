@@ -96,13 +96,12 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'gestion_horarios',
-        'USER': 'django_user',
-        'PASSWORD': 'django123',
+        'USER': 'root',
+        'PASSWORD': 'Tomas2007',  # 👈 tu nueva contraseña
         'HOST': 'localhost',
         'PORT': '3306',
     }
 }
-
 
 
 # Password validation
