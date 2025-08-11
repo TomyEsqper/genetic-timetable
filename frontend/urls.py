@@ -13,8 +13,10 @@ urlpatterns = [
     # Vista por aula
     path('aula/<int:aula_id>/', views.horario_aula, name='horario_aula'),
 
-    # Descargar Excel
+    # Descargar CSV
     path('descargar/', views.descargar_excel, name='descargar_excel'),
+    path('descargar/por-curso/', views.descargar_excel_por_curso, name='descargar_excel_por_curso'),
+    path('descargar/por-profesor/', views.descargar_excel_por_profesor, name='descargar_excel_por_profesor'),
 
     path('generar/', views.generar_horario, name='generar_horario'),
     path('validar/', views.validar_datos, name='validar_datos'),

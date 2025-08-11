@@ -63,6 +63,7 @@ class MateriaGrado(models.Model):
 class Curso(models.Model):
     nombre = models.CharField(max_length=20)
     grado = models.ForeignKey(Grado, on_delete=models.CASCADE)
+    aula_fija = models.ForeignKey('Aula', on_delete=models.SET_NULL, null=True, blank=True, related_name='cursos_asignados')
 
     def __str__(self):
         return self.nombre
@@ -94,6 +95,9 @@ class BloqueHorario(models.Model):
     ]
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='clase')
 
+    class Meta:
+        unique_together = ['numero', 'tipo']
+
     def __str__(self):
         return f"Bloque {self.numero} ({self.tipo})"
 
@@ -107,6 +111,13 @@ class Horario(models.Model):
         ('lunes','Lunes'), ('martes','Martes'), ('miércoles','Miércoles'), ('jueves','Jueves'), ('viernes','Viernes')
     ])
     bloque = models.IntegerField()
+
+    class Meta:
+        # Restricciones para evitar solapes
+        unique_together = [
+            ['curso', 'dia', 'bloque'],  # Un curso no puede tener dos materias en el mismo día y bloque
+            ['profesor', 'dia', 'bloque']  # Un profesor no puede estar en dos lugares al mismo tiempo
+        ]
 
     def clean(self):
         from django.core.exceptions import ValidationError

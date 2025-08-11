@@ -95,7 +95,7 @@ WSGI_APPLICATION = 'colegio.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'gestion_horarios',
+        'NAME': 'genetic_timetable',
         'USER': 'root',
         'PASSWORD': 'Tomas2007', 
         'HOST': 'localhost',

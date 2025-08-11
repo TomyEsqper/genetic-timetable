@@ -6,11 +6,12 @@ from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.http import HttpResponse
 from horarios.models import Curso, Profesor, Aula, Horario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor
-from horarios.exportador import exportar_horarios_excel
-from horarios.genetico import generar_horarios_genetico
+from horarios.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
+from horarios.genetico_funcion import generar_horarios_genetico
 
 DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
 BLOQUES = [1, 2, 3, 4, 5, 6]
+HORARIO_TEMPLATE = 'frontend/horario.html'
 
 def index(request):
     context = {
@@ -76,18 +77,61 @@ def validar_datos(request):
     return render(request, 'frontend/validaciones.html', {'errores': errores})
 
 def descargar_excel(request):
-    ruta = 'horarios_generados.xlsx'
-    exportar_horarios_excel(ruta)
-    return FileResponse(open(ruta, 'rb'), as_attachment=True, filename='horarios.xlsx')
+    """Descarga el horario en formato CSV."""
+    return exportar_horario_csv()
+
+def descargar_excel_por_curso(request):
+    """Descarga el horario organizado por curso en formato CSV."""
+    return exportar_horario_por_curso_csv()
+
+def descargar_excel_por_profesor(request):
+    """Descarga el horario organizado por profesor en formato CSV."""
+    return exportar_horario_por_profesor_csv()
 
 def generar_horario(request):
     if request.method == 'POST':
-        generar_horarios_genetico()
-        messages.success(request, "✅ Horarios generados exitosamente.")
-        return redirect('index')
+        try:
+            # Obtener parámetros del formulario
+            poblacion_size = int(request.POST.get('poblacion_size', 80))
+            generaciones = int(request.POST.get('generaciones', 500))
+            prob_cruce = float(request.POST.get('prob_cruce', 0.85))
+            prob_mutacion = float(request.POST.get('prob_mutacion', 0.25))
+            elite = int(request.POST.get('elite', 4))
+            paciencia = int(request.POST.get('paciencia', 25))
+            timeout_seg = int(request.POST.get('timeout_seg', 180))
+            
+            # Ejecutar algoritmo genético robusto
+            resultado = generar_horarios_genetico(
+                poblacion_size=poblacion_size,
+                generaciones=generaciones,
+                prob_cruce=prob_cruce,
+                prob_mutacion=prob_mutacion,
+                elite=elite,
+                paciencia=paciencia,
+                timeout_seg=timeout_seg
+            )
+            
+            if resultado.get('status') == 'error':
+                messages.error(request, f"❌ Error al generar horarios: {resultado.get('mensaje')}")
+                if resultado.get('errores'):
+                    for error in resultado['errores']:
+                        messages.error(request, f"  - {error}")
+            else:
+                metricas = resultado.get('metricas', {})
+                messages.success(request, f"✅ Horarios generados exitosamente en {metricas.get('tiempo_total_segundos', 0):.2f} segundos")
+                messages.info(request, f"📊 Generaciones: {metricas.get('generaciones_completadas', 0)}, Fitness: {metricas.get('mejor_fitness_final', 0):.2f}")
+                
+                # Mostrar información de validación
+                validacion = resultado.get('validacion_final', {})
+                if validacion.get('advertencias', 0) > 0:
+                    messages.warning(request, f"⚠️ {validacion.get('advertencias', 0)} advertencias detectadas")
+                
+        except Exception as e:
+            messages.error(request, f"❌ Error interno al generar horarios: {str(e)}")
+        
+        return redirect('dashboard')
     else:
-        messages.error(request, "❌ Error al generar horarios. Inténtalo de nuevo.")
-        return redirect('index')
+        return redirect('dashboard')
 
 
 def dashboard(request):
@@ -98,12 +142,25 @@ def dashboard(request):
     materias_sin_profesor = MateriaGrado.objects.exclude(
         materia__in = MateriaProfesor.objects.values_list('materia', flat=True)
     )
+    
+    # Obtener bloques disponibles del colegio (solo tipo 'clase')
+    from horarios.models import BloqueHorario
+    bloques_disponibles = list(BloqueHorario.objects.filter(tipo='clase').order_by('numero').values_list('numero', flat=True))
+    
+    # Obtener horarios organizados por curso
+    horarios_por_curso = {}
+    for curso in Curso.objects.all():
+        horarios = Horario.objects.filter(curso=curso).select_related('materia', 'profesor')
+        horarios_por_curso[curso] = horarios
 
     return render(request, 'frontend/dashboard.html', {
         'total_cursos': total_cursos,
         'total_profesores': total_profesores,
         'total_horarios': total_horarios,
         'materias_sin_profesor': materias_sin_profesor,
+        'dias': DIAS,
+        'bloques_disponibles': bloques_disponibles,
+        'horarios_por_curso': horarios_por_curso,
     })
 
 def pdf_curso(request, curso_id):

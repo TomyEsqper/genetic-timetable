@@ -8,7 +8,7 @@
 </head>
 <body class="bg-gray-100 min-h-screen font-sans">
 
-  <div class="max-w-6xl mx-auto p-6">
+  <div class="max-w-7xl mx-auto p-6">
     <!-- Logo y encabezado -->
     <div class="flex items-center justify-between mb-8">
       <div class="flex items-center gap-4">
@@ -27,9 +27,8 @@
       </div>
     {% endif %}
 
-    <!-- Tarjetas -->
+    <!-- Tarjetas de navegación -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-
       <!-- Cursos -->
       <div class="bg-white rounded-lg shadow-md p-4">
         <h2 class="text-xl font-semibold mb-2 text-blue-700">📘 Ver horario por curso</h2>
@@ -43,7 +42,6 @@
           {% endfor %}
         </ul>
       </div>
-
       <!-- Profesores -->
       <div class="bg-white rounded-lg shadow-md p-4">
         <h2 class="text-xl font-semibold mb-2 text-green-700">👨‍🏫 Ver horario por profesor</h2>
@@ -57,7 +55,6 @@
           {% endfor %}
         </ul>
       </div>
-
       <!-- Aulas -->
       <div class="bg-white rounded-lg shadow-md p-4">
         <h2 class="text-xl font-semibold mb-2 text-purple-700">🏫 Ver horario por aula</h2>
@@ -73,28 +70,60 @@
       </div>
     </div>
 
+    <!-- Horario en cuadrícula (dinámico por BloqueHorario) -->
+    <div class="bg-white rounded-lg shadow-md p-6 mt-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-2xl font-bold text-gray-800">Horario semanal</h2>
+        <span class="text-sm text-gray-500">Vista dinámica basada en la base de datos</span>
+      </div>
+
+      {% if horarios %}
+        <div class="overflow-x-auto">
+          <div class="min-w-[900px]">
+            <!-- Encabezados de días -->
+            <div class="grid grid-cols-6 gap-2 mb-2">
+              <div></div>
+              {% for dia in dias %}
+                <div class="text-center font-semibold text-blue-800">{{ dia }}</div>
+              {% endfor %}
+            </div>
+
+            <!-- Filas por bloque real (hora_inicio - hora_fin) -->
+            {% for bloque in bloques %}
+              <div class="grid grid-cols-6 gap-2 items-center mb-2">
+                <div class="text-center font-medium text-gray-700">
+                  {{ bloque.hora_inicio }} - {{ bloque.hora_fin }}
+                </div>
+
+                {% for dia in dias %}
+                  <div class="border border-gray-300 p-2 text-sm text-gray-800 bg-gray-100">
+                    {% for h in horarios %}
+                      {% if h.dia == dia and h.bloque.id == bloque.id %}
+                        <div class="font-semibold">{{ h.materia.nombre|default:h.materia }}</div>
+                        <div class="text-sm text-gray-600">{{ h.profesor.nombre|default:h.profesor }}</div>
+                        <div class="text-sm text-gray-600">{{ h.aula.nombre|default:h.aula }}</div>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        <p class="text-gray-600">No hay horarios disponibles para mostrar.</p>
+      {% endif %}
+    </div>
+
     <!-- Acciones -->
     <div class="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
-
-      <a href="{% url 'descargar_excel' %}" class="bg-green-600 text-white px-6 py-3 rounded-lg shadow hover:bg-green-700 transition">
-        📥 Descargar Excel
-      </a>
-
+      <a href="{% url 'descargar_excel' %}" class="bg-green-600 text-white px-6 py-3 rounded-lg shadow hover:bg-green-700 transition">📥 Descargar Excel</a>
       <form action="{% url 'generar_horario' %}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres generar un nuevo horario? Esto reemplazará el actual.')">
         {% csrf_token %}
-        <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-lg shadow hover:bg-red-700 transition">
-          ⚙️ Generar nuevo horario
-        </button>
+        <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-lg shadow hover:bg-red-700 transition">⚙️ Generar nuevo horario</button>
       </form>
-
-      <a href="{% url 'validar_datos' %}" class="bg-yellow-500 text-white px-6 py-3 rounded-lg shadow hover:bg-yellow-600 transition">
-        🧪 Validar datos antes de generar
-      </a>
-
-      <a href="{% url 'dashboard' %}" class="bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600 transition">
-        📊 Ver resumen del sistema
-      </a>
-
+      <a href="{% url 'validar_datos' %}" class="bg-yellow-500 text-white px-6 py-3 rounded-lg shadow hover:bg-yellow-600 transition">🧪 Validar datos antes de generar</a>
+      <a href="{% url 'dashboard' %}" class="bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600 transition">📊 Ver resumen del sistema</a>
     </div>
   </div>
 
