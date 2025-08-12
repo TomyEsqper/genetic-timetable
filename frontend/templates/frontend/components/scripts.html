@@ -1,0 +1,176 @@
+<script>
+// Funcionalidad para filtrar horarios
+function filtrarHorarios(cursoId) {
+  const horarios = document.querySelectorAll('.horario-curso');
+  const botones = document.querySelectorAll('[onclick^="filtrarHorarios"]');
+  
+  // Actualizar botones
+  botones.forEach(btn => {
+    btn.className = 'px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors';
+  });
+  
+  if (cursoId === 'todos') {
+    // Mostrar todos los horarios
+    horarios.forEach(horario => {
+      horario.style.display = 'block';
+    });
+    botones[0].className = 'px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors';
+  } else {
+    // Mostrar solo el horario seleccionado
+    horarios.forEach(horario => {
+      if (horario.dataset.cursoId === cursoId) {
+        horario.style.display = 'block';
+      } else {
+        horario.style.display = 'none';
+      }
+    });
+    // Actualizar botón activo
+    const botonActivo = document.querySelector(`[onclick="filtrarHorarios('${cursoId}')"]`);
+    if (botonActivo) {
+      botonActivo.className = 'px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors';
+    }
+  }
+}
+
+// Cargar estadísticas en tiempo real
+function cargarEstadisticas() {
+  fetch('/estadisticas-ajax/')
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        console.error('Error al cargar estadísticas:', data.error);
+        return;
+      }
+      
+      // Actualizar estadísticas
+      document.getElementById('total-cursos').textContent = data.total_cursos;
+      document.getElementById('total-profesores').textContent = data.total_profesores;
+      document.getElementById('total-horarios').textContent = data.total_horarios;
+      document.getElementById('total-bloques').textContent = data.total_aulas;
+      
+      // Actualizar profesores sin disponibilidad
+      const container = document.getElementById('profesores-sin-disponibilidad');
+      if (data.profesores_sin_disponibilidad > 0) {
+        container.innerHTML = `<li class="text-orange-600">⚠️ ${data.profesores_sin_disponibilidad} profesores sin disponibilidad</li>`;
+      } else {
+        container.innerHTML = '<li class="text-green-600">✅ Todos los profesores tienen disponibilidad registrada</li>';
+      }
+    })
+    .catch(error => {
+      console.error('Error al cargar estadísticas:', error);
+    });
+}
+
+// Manejo del formulario de generación
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('form-generacion');
+  const btnGenerar = document.getElementById('btn-generar');
+  const loadingIndicator = document.getElementById('loading-indicator');
+  
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      // Mostrar indicador de carga
+      btnGenerar.disabled = true;
+      btnGenerar.textContent = 'Generando...';
+      loadingIndicator.classList.remove('hidden');
+      
+      // El formulario se enviará normalmente
+    });
+  }
+  
+  // Cargar estadísticas iniciales
+  cargarEstadisticas();
+  
+  // Actualizar estadísticas cada 30 segundos
+  setInterval(cargarEstadisticas, 30000);
+});
+
+// Funcionalidad para cargar horarios dinámicamente
+function cargarHorarioAjax(tipo, id) {
+  const container = document.getElementById('horario-container');
+  if (!container) return;
+  
+  container.innerHTML = '<div class="text-center p-8"><div class="animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div><p class="mt-2">Cargando horario...</p></div>';
+  
+  fetch(`/horario-ajax/?tipo=${tipo}&id=${id}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        container.innerHTML = `<div class="text-center p-8 text-red-600">Error: ${data.error}</div>`;
+        return;
+      }
+      
+      // Renderizar horario
+      renderizarHorario(data, container);
+    })
+    .catch(error => {
+      container.innerHTML = `<div class="text-center p-8 text-red-600">Error al cargar horario: ${error}</div>`;
+    });
+}
+
+function renderizarHorario(data, container) {
+  let html = `<h2 class="text-2xl font-bold text-blue-900 mb-6">${data.titulo}</h2>`;
+  html += '<div class="overflow-x-auto"><table class="w-full border-collapse border border-gray-300">';
+  
+  // Encabezado
+  html += '<thead><tr class="bg-gray-100"><th class="border border-gray-300 p-2 text-center font-semibold">Hora</th>';
+  data.dias.forEach(dia => {
+    html += `<th class="border border-gray-300 p-2 text-center font-semibold">${dia.charAt(0).toUpperCase() + dia.slice(1)}</th>`;
+  });
+  html += '</tr></thead>';
+  
+  // Cuerpo
+  html += '<tbody>';
+  data.bloques.forEach(bloque => {
+    html += `<tr><td class="border border-gray-300 p-2 text-center font-medium bg-gray-50">Bloque ${bloque}</td>`;
+    
+    data.dias.forEach(dia => {
+      const horario = data.horarios.find(h => h.dia === dia && h.bloque === bloque);
+      html += '<td class="border border-gray-300 p-2 text-center min-h-[60px]">';
+      
+      if (horario) {
+        html += `<div class="text-sm p-1 rounded bg-blue-100">
+          <div class="font-semibold text-blue-700">${horario.materia}</div>
+          <div class="text-gray-600 text-xs">${horario.profesor}</div>
+          <div class="text-gray-500 text-xs">${horario.aula}</div>
+        </div>`;
+      }
+      
+      html += '</td>';
+    });
+    
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  container.innerHTML = html;
+}
+
+// Mejoras de accesibilidad
+document.addEventListener('DOMContentLoaded', function() {
+  // Agregar navegación por teclado
+  const botones = document.querySelectorAll('button, a');
+  botones.forEach(boton => {
+    boton.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.click();
+      }
+    });
+  });
+  
+  // Agregar focus visible
+  const focusableElements = document.querySelectorAll('button, a, input, select, textarea');
+  focusableElements.forEach(element => {
+    element.addEventListener('focus', function() {
+      this.style.outline = '2px solid #3b82f6';
+      this.style.outlineOffset = '2px';
+    });
+    
+    element.addEventListener('blur', function() {
+      this.style.outline = '';
+      this.style.outlineOffset = '';
+    });
+  });
+});
+</script>

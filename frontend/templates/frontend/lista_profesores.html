@@ -1,0 +1,181 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Profesores - Generador de Horarios</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans p-6">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded shadow p-6 mb-6">
+      <h1 class="text-3xl font-bold text-blue-900 mb-4">👨‍🏫 Lista de Profesores</h1>
+      
+      <!-- Filtros -->
+      <div class="mb-6">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+          <div>
+            <label class="block text-sm font-medium mb-1">Buscar por nombre</label>
+            <input type="text" name="nombre" value="{{ request.GET.nombre }}" 
+                   placeholder="Ingrese nombre del profesor..."
+                   class="p-2 border rounded focus:ring-2 focus:ring-blue-500 w-64">
+          </div>
+          <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+            🔍 Buscar
+          </button>
+          <a href="{% url 'lista_profesores' %}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors">
+            🗑️ Limpiar
+          </a>
+        </form>
+      </div>
+    </div>
+
+    <!-- Lista de profesores -->
+    <div class="bg-white rounded shadow p-6">
+      {% if page_obj %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {% for profesor in page_obj %}
+          <div class="border rounded-lg p-4 hover:shadow-lg transition-shadow">
+            <div class="flex justify-between items-start mb-3">
+              <h3 class="text-lg font-semibold text-gray-800">{{ profesor.nombre }}</h3>
+              <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Profesor</span>
+            </div>
+            
+            <div class="space-y-2 text-sm text-gray-600">
+              <p><strong>ID:</strong> {{ profesor.id }}</p>
+              <p><strong>Materias asignadas:</strong> 
+                {% with materias=profesor.materiaprofesor_set.all %}
+                  {% if materias %}
+                    {{ materias|length }} materia{{ materias|length|pluralize }}
+                  {% else %}
+                    <span class="text-red-500">Sin materias asignadas</span>
+                  {% endif %}
+                {% endwith %}
+              </p>
+              <p><strong>Disponibilidad:</strong> 
+                {% with disponibilidad=profesor.disponibilidadprofesor_set.all %}
+                  {% if disponibilidad %}
+                    <span class="text-green-600">Registrada</span>
+                  {% else %}
+                    <span class="text-orange-500">No registrada</span>
+                  {% endif %}
+                {% endwith %}
+              </p>
+            </div>
+            
+            <div class="mt-4 flex gap-2">
+              <a href="{% url 'horario_profesor' profesor.id %}" 
+                 class="flex-1 bg-blue-600 text-white text-center py-2 rounded hover:bg-blue-700 transition-colors text-sm">
+                Ver horario
+              </a>
+              <button onclick="verDetallesProfesor({{ profesor.id }})" 
+                      class="bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 transition-colors text-sm">
+                📋
+              </button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="mt-8 flex justify-center">
+          <nav class="flex items-center space-x-2">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.nombre %}&nombre={{ request.GET.nombre }}{% endif %}" 
+               class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+              ← Anterior
+            </a>
+            {% endif %}
+            
+            <span class="px-3 py-2 bg-blue-600 text-white rounded">
+              Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.nombre %}&nombre={{ request.GET.nombre }}{% endif %}" 
+               class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+              Siguiente →
+            </a>
+            {% endif %}
+          </nav>
+        </div>
+        {% endif %}
+        
+      {% else %}
+        <div class="text-center py-12">
+          <div class="text-6xl text-gray-300 mb-4">👨‍🏫</div>
+          <h2 class="text-2xl font-bold text-gray-600 mb-2">No se encontraron profesores</h2>
+          <p class="text-gray-500">Intenta ajustar los filtros o crear nuevos profesores.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Navegación -->
+    <div class="mt-6 text-center">
+      <a href="{% url 'dashboard' %}" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors">
+        ⬅ Volver al Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- Modal para detalles del profesor -->
+  <div id="modal-detalles" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Detalles del Profesor</h3>
+        <button onclick="cerrarModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+      </div>
+      <div id="modal-content">
+        <!-- Contenido dinámico -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function verDetallesProfesor(profesorId) {
+      // Aquí se podría cargar detalles específicos del profesor via AJAX
+      const modal = document.getElementById('modal-detalles');
+      const content = document.getElementById('modal-content');
+      
+      content.innerHTML = `
+        <div class="text-center py-4">
+          <div class="animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+          <p class="mt-2">Cargando detalles...</p>
+        </div>
+      `;
+      
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      
+      // Simular carga de datos (en una implementación real, esto sería una llamada AJAX)
+      setTimeout(() => {
+        content.innerHTML = `
+          <p class="text-gray-600 mb-4">Detalles del profesor ID: ${profesorId}</p>
+          <p class="text-sm text-gray-500">Esta funcionalidad se puede expandir para mostrar información detallada del profesor.</p>
+          <div class="mt-4 flex justify-end">
+            <button onclick="cerrarModal()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+              Cerrar
+            </button>
+          </div>
+        `;
+      }, 1000);
+    }
+    
+    function cerrarModal() {
+      const modal = document.getElementById('modal-detalles');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+    
+    // Cerrar modal al hacer clic fuera de él
+    document.getElementById('modal-detalles').addEventListener('click', function(e) {
+      if (e.target === this) {
+        cerrarModal();
+      }
+    });
+  </script>
+</body>
+</html>

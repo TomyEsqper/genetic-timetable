@@ -1,0 +1,21 @@
+<div class="bg-white rounded shadow p-6 mb-6">
+  <h2 class="text-xl font-semibold text-gray-800 mb-4">📈 Estadísticas del Sistema</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+    <div class="bg-blue-100 text-blue-800 p-4 rounded shadow hover:bg-blue-200 transition-colors">
+      <h3 class="text-lg font-semibold">Cursos</h3>
+      <p class="text-3xl font-bold" id="total-cursos">{{ total_cursos }}</p>
+    </div>
+    <div class="bg-green-100 text-green-800 p-4 rounded shadow hover:bg-green-200 transition-colors">
+      <h3 class="text-lg font-semibold">Profesores</h3>
+      <p class="text-3xl font-bold" id="total-profesores">{{ total_profesores }}</p>
+    </div>
+    <div class="bg-purple-100 text-purple-800 p-4 rounded shadow hover:bg-purple-200 transition-colors">
+      <h3 class="text-lg font-semibold">Asignaciones</h3>
+      <p class="text-3xl font-bold" id="total-horarios">{{ total_horarios }}</p>
+    </div>
+    <div class="bg-orange-100 text-orange-800 p-4 rounded shadow hover:bg-orange-200 transition-colors">
+      <h3 class="text-lg font-semibold">Bloques</h3>
+      <p class="text-3xl font-bold" id="total-bloques">{{ bloques_disponibles|length }}</p>
+    </div>
+  </div>
+</div> 

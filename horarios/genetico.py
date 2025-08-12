@@ -24,6 +24,7 @@ Características principales:
 import random
 import logging
 import time
+import os
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple, Any
@@ -36,6 +37,10 @@ from concurrent.futures import ProcessPoolExecutor
 import json
 from collections import defaultdict
 
+# Configuración global para optimizaciones
+USE_DATAFRAMES = False  # Por defecto usar Python puro para mejor rendimiento
+USE_ORTOOLS = False     # Fallback opcional a OR-Tools
+
 # Intentar importar librerías opcionales
 def try_import(module_name):
     """Intenta importar un módulo y devuelve None si no está disponible."""
@@ -47,8 +52,8 @@ def try_import(module_name):
 # Importar librerías opcionales
 joblib = try_import('joblib')
 numba = try_import('numba')
-pandas = try_import('pandas')
-polars = try_import('polars')
+pandas = try_import('pandas') if USE_DATAFRAMES else None
+polars = try_import('polars') if USE_DATAFRAMES else None
 redis = try_import('redis')
 
 # Configurar Numba si está disponible
@@ -67,6 +72,40 @@ else:
     # Alias para range cuando no hay numba
     prange = range
 
+def warmup_numba(datos):
+    """
+    Función de warm-up para Numba JIT.
+    Se ejecuta una sola vez al inicio para evitar "arranque eterno".
+    """
+    if not numba:
+        return
+    
+    # Verificar si se debe desactivar
+    import os
+    if os.environ.get('HORARIOS_NUMBA', '1') == '0':
+        logger.info("Warm-up de Numba desactivado por HORARIOS_NUMBA=0")
+        return
+    
+    try:
+        logger.info("Ejecutando warm-up de Numba...")
+        
+        # Generar arrays diminutos para calentar JIT
+        if hasattr(datos, 'bloques_disponibles') and datos.bloques_disponibles:
+            # Crear datos de prueba mínimos
+            test_genes = {(1, 'lunes', 1): (1, 1)}
+            test_bloques = list(datos.bloques_disponibles)[:2] if len(datos.bloques_disponibles) >= 2 else [1, 2]
+            
+            # Llamar a funciones que usan Numba para calentar JIT
+            if '_calcular_conflictos_numpy' in globals():
+                _calcular_conflictos_numpy(test_genes, test_bloques)
+                logger.info("✅ Warm-up de Numba completado")
+            else:
+                logger.debug("Función _calcular_conflictos_numpy no disponible para warm-up")
+        
+    except Exception as e:
+        logger.warning(f"Error durante warm-up de Numba: {e}")
+        logger.info("Continuando sin warm-up de Numba")
+
 from horarios.models import (
     Curso, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, 
     Aula, Horario, BloqueHorario, Materia, Profesor
@@ -80,8 +119,120 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Constantes
-DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+def get_dias_clase():
+    """
+    Obtiene los días de clase desde la configuración de la base de datos.
+    Retorna lista normalizada (lower, strip) de días.
+    """
+    try:
+        from horarios.models import ConfiguracionColegio
+        config = ConfiguracionColegio.objects.first()
+        if config and config.dias_clase:
+            dias = [dia.strip().lower() for dia in config.dias_clase.split(',')]
+            logger.info(f"Días de clase cargados desde BD: {dias}")
+            return dias
+        else:
+            logger.warning("No se encontró configuración de días de clase, usando valores por defecto")
+            return ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+    except Exception as e:
+        logger.warning(f"Error al cargar días de clase desde BD: {e}, usando valores por defecto")
+        return ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+
+# Obtener días dinámicamente
+DIAS = get_dias_clase()
 DIA_INDICE = {dia: idx for idx, dia in enumerate(DIAS)}
+
+# Configuración para representación compacta
+LNS_FREQ = 10          # Frecuencia de aplicación de LNS
+LNS_RATIO = 0.25       # Porcentaje de individuos afectados por LNS
+FITNESS_CACHE_SIZE = 4096  # Tamaño del caché LRU de fitness
+
+# Caché LRU de fitness
+class FitnessCache:
+    """Caché LRU simple para almacenar resultados de fitness."""
+    
+    def __init__(self, max_size: int = FITNESS_CACHE_SIZE):
+        self.max_size = max_size
+        self.cache = {}
+        self.access_order = []
+    
+    def get(self, key: str) -> Tuple[float, int]:
+        """Obtiene valor del caché y actualiza orden de acceso."""
+        if key in self.cache:
+            # Mover al final (más reciente)
+            self.access_order.remove(key)
+            self.access_order.append(key)
+            return self.cache[key]
+        return None
+    
+    def put(self, key: str, value: Tuple[float, int]):
+        """Almacena valor en caché con política LRU."""
+        if key in self.cache:
+            # Actualizar existente
+            self.access_order.remove(key)
+        elif len(self.cache) >= self.max_size:
+            # Eliminar menos reciente
+            oldest = self.access_order.pop(0)
+            del self.cache[oldest]
+        
+        self.cache[key] = value
+        self.access_order.append(key)
+    
+    def clear(self):
+        """Limpia el caché."""
+        self.cache.clear()
+        self.access_order.clear()
+    
+    def size(self) -> int:
+        """Retorna el tamaño actual del caché."""
+        return len(self.cache)
+
+# Instancia global del caché
+fitness_cache = FitnessCache()
+
+# Mapeos de índices para representación compacta
+def crear_mapeos_indices(datos):
+    """
+    Crea mapeos de índices para representación compacta del cromosoma.
+    """
+    # Mapeos curso
+    curso_to_idx = {curso_id: idx for idx, curso_id in enumerate(datos.cursos.keys())}
+    idx_to_curso = {idx: curso_id for curso_id, idx in curso_to_idx.items()}
+    
+    # Mapeos día
+    dia_to_idx = DIA_INDICE
+    idx_to_dia = {idx: dia for dia, idx in dia_to_idx.items()}
+    
+    # Mapeos bloque (solo tipo 'clase')
+    bloques_clase = sorted(datos.bloques_disponibles)
+    bloque_to_idx = {bloque: idx for idx, bloque in enumerate(bloques_clase)}
+    idx_to_bloque = {idx: bloque for bloque, idx in bloque_to_idx.items()}
+    
+    # Mapeos materia
+    materia_to_idx = {materia_id: idx for idx, materia_id in enumerate(datos.materias.keys())}
+    idx_to_materia = {idx: materia_id for materia_id, idx in materia_to_idx.items()}
+    
+    # Mapeos profesor
+    profesor_to_idx = {profesor_id: idx for idx, profesor_id in enumerate(datos.profesores.keys())}
+    idx_to_profesor = {idx: profesor_id for profesor_id, idx in profesor_to_idx.items()}
+    
+    return {
+        'curso_to_idx': curso_to_idx,
+        'idx_to_curso': idx_to_curso,
+        'dia_to_idx': dia_to_idx,
+        'idx_to_dia': idx_to_dia,
+        'bloque_to_idx': bloque_to_idx,
+        'idx_to_bloque': idx_to_bloque,
+        'materia_to_idx': materia_to_idx,
+        'idx_to_materia': idx_to_materia,
+        'profesor_to_idx': profesor_to_idx,
+        'idx_to_profesor': idx_to_profesor,
+        'n_cursos': len(curso_to_idx),
+        'n_dias': len(DIAS),
+        'n_bloques': len(bloques_clase),
+        'n_materias': len(materia_to_idx),
+        'n_profesores': len(profesor_to_idx)
+    }
 
 # Constantes de penalización para fitness
 PENAL_HUECO = 10_000  # Penalización alta por cada casilla vacía
@@ -94,6 +245,86 @@ class ProfesorData:
     id: int
     disponibilidad: Set[Tuple[str, int]]  # (día, bloque)
     materias: Set[int]  # materia_ids
+
+@dataclass
+class CromosomaCompacto:
+    """
+    Representación compacta del cromosoma usando arrays NumPy.
+    """
+    materia_por_slot: np.ndarray  # dtype=int16, tamaño N = cursos * dias * bloques
+    profesor_por_slot: np.ndarray  # dtype=int16, tamaño N = cursos * dias * bloques
+    mapeos: Dict  # Mapeos de índices para conversión
+    
+    def __post_init__(self):
+        self.n_slots = len(self.materia_por_slot)
+        self.n_cursos = self.mapeos['n_cursos']
+        self.n_dias = self.mapeos['n_dias']
+        self.n_bloques = self.mapeos['n_bloques']
+    
+    def slot_to_coords(self, slot_id: int) -> Tuple[int, int, int]:
+        """Convierte slot_id a (curso_idx, dia_idx, bloque_idx)"""
+        curso_idx = slot_id // (self.n_dias * self.n_bloques)
+        resto = slot_id % (self.n_dias * self.n_bloques)
+        dia_idx = resto // self.n_bloques
+        bloque_idx = resto % self.n_bloques
+        return curso_idx, dia_idx, bloque_idx
+    
+    def coords_to_slot(self, curso_idx: int, dia_idx: int, bloque_idx: int) -> int:
+        """Convierte (curso_idx, dia_idx, bloque_idx) a slot_id"""
+        return curso_idx * (self.n_dias * self.n_bloques) + dia_idx * self.n_bloques + bloque_idx
+    
+    def get_hash(self) -> str:
+        """Genera hash del cromosoma para caché"""
+        import hashlib
+        # Concatenar arrays y generar hash
+        combined = np.concatenate([self.materia_por_slot, self.profesor_por_slot])
+        return hashlib.sha1(combined.tobytes()).hexdigest()[:16]
+
+def dict_to_arrays(crom_dict: Dict, mapeos: Dict) -> CromosomaCompacto:
+    """
+    Convierte cromosoma de dict a arrays compactos.
+    """
+    n_slots = mapeos['n_cursos'] * mapeos['n_dias'] * mapeos['n_bloques']
+    
+    # Inicializar arrays con -1 (slot vacío)
+    materia_por_slot = np.full(n_slots, -1, dtype=np.int16)
+    profesor_por_slot = np.full(n_slots, -1, dtype=np.int16)
+    
+    # Llenar arrays desde el dict
+    for (curso_id, dia, bloque), (materia_id, profesor_id) in crom_dict.items():
+        curso_idx = mapeos['curso_to_idx'][curso_id]
+        dia_idx = mapeos['dia_to_idx'][dia]
+        bloque_idx = mapeos['bloque_to_idx'][bloque]
+        
+        slot_id = curso_idx * (mapeos['n_dias'] * mapeos['n_bloques']) + dia_idx * mapeos['n_bloques'] + bloque_idx
+        
+        materia_por_slot[slot_id] = mapeos['materia_to_idx'][materia_id]
+        profesor_por_slot[slot_id] = mapeos['profesor_to_idx'][profesor_id]
+    
+    return CromosomaCompacto(materia_por_slot, profesor_por_slot, mapeos)
+
+def arrays_to_dict(crom_compacto: CromosomaCompacto) -> Dict:
+    """
+    Convierte cromosoma de arrays compactos a dict.
+    """
+    crom_dict = {}
+    
+    for slot_id in range(crom_compacto.n_slots):
+        materia_idx = crom_compacto.materia_por_slot[slot_id]
+        profesor_idx = crom_compacto.profesor_por_slot[slot_id]
+        
+        if materia_idx != -1 and profesor_idx != -1:
+            curso_idx, dia_idx, bloque_idx = crom_compacto.slot_to_coords(slot_id)
+            
+            curso_id = crom_compacto.mapeos['idx_to_curso'][curso_idx]
+            dia = crom_compacto.mapeos['idx_to_dia'][dia_idx]
+            bloque = crom_compacto.mapeos['idx_to_bloque'][bloque_idx]
+            materia_id = crom_compacto.mapeos['idx_to_materia'][materia_idx]
+            profesor_id = crom_compacto.mapeos['idx_to_profesor'][profesor_idx]
+            
+            crom_dict[(curso_id, dia, bloque)] = (materia_id, profesor_id)
+    
+    return crom_dict
 
 @dataclass
 class MateriaData:
@@ -149,11 +380,12 @@ class Cromosoma:
 
 def pre_validacion_dura(datos: DatosHorario) -> List[str]:
     """
-    Pre-validación dura antes de generar población.
+    Pre-validación dura más estricta antes de generar población.
     
-    Por cada Curso, cuenta los bloques de tipo clase de lunes a viernes.
-    Suma los bloques_por_semana de sus MateriaGrado asignables.
-    Si la suma ≠ cantidad de bloques de clase del curso, lanza excepción clara.
+    Verifica:
+    1. Capacidad vs demanda de bloques por curso
+    2. Disponibilidad de profesores para cada materia
+    3. Factibilidad básica del problema
     
     Args:
         datos: Datos preprocesados del horario
@@ -163,9 +395,11 @@ def pre_validacion_dura(datos: DatosHorario) -> List[str]:
     """
     errores = []
     
-    # Calcular bloques totales disponibles por curso (5 días * bloques por día)
+    # Calcular bloques totales disponibles por curso (días * bloques por día)
     bloques_por_dia = len(datos.bloques_disponibles)
-    bloques_totales_curso = 5 * bloques_por_dia
+    bloques_totales_curso = len(DIAS) * bloques_por_dia
+    
+    logger.info(f"Validando {len(datos.cursos)} cursos con {bloques_totales_curso} bloques disponibles por curso")
     
     for curso_id, curso in datos.cursos.items():
         # Calcular bloques requeridos por las materias del curso
@@ -177,15 +411,39 @@ def pre_validacion_dura(datos: DatosHorario) -> List[str]:
                 materia = datos.materias[materia_id]
                 bloques_requeridos += materia.bloques_por_semana
                 materias_curso.append(f"{materia.nombre}({materia.bloques_por_semana})")
+                
+                # Verificar que la materia tenga al menos un profesor
+                if not materia.profesores:
+                    errores.append(f"❌ Materia {materia.nombre} del curso {curso.nombre} no tiene profesores asignados")
+                    continue
+                
+                # Verificar que al menos un profesor tenga disponibilidad
+                profesor_con_disponibilidad = False
+                for profesor_id in materia.profesores:
+                    if profesor_id in datos.profesores:
+                        if datos.profesores[profesor_id].disponibilidad:
+                            profesor_con_disponibilidad = True
+                            break
+                
+                if not profesor_con_disponibilidad:
+                    errores.append(f"❌ Materia {materia.nombre} del curso {curso.nombre} no tiene profesores con disponibilidad")
         
-        # Verificar si hay diferencia
+        # Verificar capacidad vs demanda
         diferencia = bloques_requeridos - bloques_totales_curso
         
         if diferencia != 0:
             if diferencia > 0:
-                errores.append(f"{curso.nombre}: faltan {diferencia} bloques (requiere {bloques_requeridos}, disponible {bloques_totales_curso})")
+                errores.append(f"❌ {curso.nombre}: DEMANDA EXCEDE CAPACIDAD - requiere {bloques_requeridos} bloques, disponible {bloques_totales_curso} bloques")
             else:
-                errores.append(f"{curso.nombre}: sobran {abs(diferencia)} bloques (requiere {bloques_requeridos}, disponible {bloques_totales_curso})")
+                errores.append(f"⚠️ {curso.nombre}: capacidad subutilizada - requiere {bloques_requeridos} bloques, disponible {bloques_totales_curso} bloques")
+    
+    # Verificar factibilidad global
+    if errores:
+        logger.error(f"Pre-validación falló con {len(errores)} errores:")
+        for error in errores:
+            logger.error(f"  {error}")
+    else:
+        logger.info("✅ Pre-validación exitosa: todos los cursos tienen capacidad suficiente")
     
     return errores
 
@@ -202,7 +460,7 @@ def cargar_datos() -> DatosHorario:
     datos.bloques_disponibles = list(BloqueHorario.objects.filter(tipo='clase').order_by('numero').values_list('numero', flat=True))
     
     # Procesamiento eficiente de disponibilidad de profesores
-    if pandas or polars:
+    if USE_DATAFRAMES and (pandas or polars):
         # Usar Pandas/Polars para procesamiento vectorizado
         df_lib = polars if polars else pandas
         using_pandas = (df_lib.__name__ == 'pandas')
@@ -337,7 +595,7 @@ def cargar_datos() -> DatosHorario:
             datos.materia_dificultad[materia_id] = 1.0 / max(1, num_profesores)
     
     # Cargar cursos y relación materia-grado
-    if pandas or polars:
+    if USE_DATAFRAMES and (pandas or polars):
         # Usar Pandas/Polars para procesamiento vectorizado
         df_lib = polars if polars else pandas
         using_pandas = (df_lib.__name__ == 'pandas')
@@ -435,6 +693,39 @@ def inicializar_poblacion(datos: DatosHorario, tamano_poblacion: int, semilla: i
     
     poblacion = []
     
+    # Calcular dificultad de materias por curso para inicialización inteligente
+    dificultad_materias = {}
+    for curso_id, curso in datos.cursos.items():
+        dificultad_materias[curso_id] = []
+        
+        for materia_id in curso.materias:
+            if materia_id not in datos.materias:
+                continue
+                
+            materia = datos.materias[materia_id]
+            
+            # Calcular puntuación de dificultad
+            puntuacion = 0
+            
+            # Menos profesores = más difícil
+            puntuacion += (10 - len(materia.profesores)) * 10
+            
+            # Baja disponibilidad = más difícil
+            disponibilidad_total = 0
+            for profesor_id in materia.profesores:
+                if profesor_id in datos.profesores:
+                    disponibilidad_total += len(datos.profesores[profesor_id].disponibilidad)
+            puntuacion += (100 - disponibilidad_total) * 0.1
+            
+            # Requiere bloques consecutivos = más difícil
+            if materia.bloques_por_semana > 1:
+                puntuacion += 20
+            
+            dificultad_materias[curso_id].append((materia_id, puntuacion))
+        
+        # Ordenar por dificultad (más difícil primero)
+        dificultad_materias[curso_id].sort(key=lambda x: x[1], reverse=True)
+    
     for individuo in range(tamano_poblacion):
         cromosoma = Cromosoma()
         
@@ -451,9 +742,9 @@ def inicializar_poblacion(datos: DatosHorario, tamano_poblacion: int, semilla: i
                 for bloque in datos.bloques_disponibles:
                     slots_disponibles.add((dia, bloque))
             
-            # Crear lista de materias con sus bloques requeridos
+            # Crear lista de materias con sus bloques requeridos (ordenadas por dificultad)
             materias_a_asignar = []
-            for materia_id in curso.materias:
+            for materia_id, _ in dificultad_materias[curso_id]:
                 if materia_id in datos.materias:
                     materia = datos.materias[materia_id]
                     bloques_necesarios = materia.bloques_por_semana
@@ -462,8 +753,7 @@ def inicializar_poblacion(datos: DatosHorario, tamano_poblacion: int, semilla: i
                         for _ in range(bloques_necesarios):
                             materias_a_asignar.append(materia_id)
             
-            # Mezclar la lista de materias para asignación aleatoria
-            random.shuffle(materias_a_asignar)
+            # NO mezclar: mantener orden de dificultad para asignar materias difíciles primero
             
             # Asignar cada materia a un slot disponible
             for materia_id in materias_a_asignar:
@@ -1019,52 +1309,92 @@ def repair_individual_robusto(cromosoma: Cromosoma, datos: DatosHorario) -> Tupl
                 profesores_ocupados[(profesor_encontrado, dia, bloque)] = curso_id
                 estadisticas['huecos_llenados'] += 1
     
-    # 5. Resolver conflictos de profesores
+    # 5. Resolver conflictos de profesores - O(n) usando dict
     conflictos_resueltos = 0
     max_iteraciones = 10  # Evitar bucle infinito
     
     for iteracion in range(max_iteraciones):
         conflictos_encontrados = False
         
-        # Buscar conflictos
-        for (curso_id, dia, bloque), (materia_id, profesor_id) in list(cromosoma_reparado.genes.items()):
-            # Verificar si hay otro curso con el mismo profesor en el mismo slot
-            for (c_id2, d2, b2), (m_id2, p_id2) in list(cromosoma_reparado.genes.items()):
-                if (c_id2, d2, b2) != (curso_id, dia, bloque) and p_id2 == profesor_id and d2 == dia and b2 == bloque:
-                    # Conflicto encontrado
-                    conflictos_encontrados = True
-                    
-                    # Intentar recolocar el conflicto
+        # Crear dict de conflictos: (profesor_id, dia, bloque) -> List[(curso_id, dia, bloque, materia_id)]
+        conflictos = defaultdict(list)
+        for (curso_id, dia, bloque), (materia_id, profesor_id) in cromosoma_reparado.genes.items():
+            key = (profesor_id, dia, bloque)
+            conflictos[key].append((curso_id, dia, bloque, materia_id))
+        
+        # Resolver conflictos donde hay más de una asignación
+        for (profesor_id, dia, bloque), asignaciones in conflictos.items():
+            if len(asignaciones) > 1:
+                conflictos_encontrados = True
+                logger.debug(f"Conflicto detectado: profesor {profesor_id} en {dia} bloque {bloque} con {len(asignaciones)} asignaciones")
+                
+                # Conservar la primera asignación, recolocar las restantes
+                for i, (curso_id, dia_orig, bloque_orig, materia_id) in enumerate(asignaciones[1:], 1):
                     slot_alternativo = None
                     profesor_alternativo = None
                     
-                    # Buscar slot alternativo para el mismo curso
+                    # Intentar slot alternativo libre en el mismo curso
                     for d_alt in DIAS:
                         for b_alt in datos.bloques_disponibles:
-                            if (d_alt, b_alt) not in slots_ocupados or slots_ocupados[(d_alt, b_alt)][1] != profesor_id:
+                            if (d_alt, b_alt) in slots_disponibles[curso_id]:
                                 # Verificar disponibilidad del profesor
                                 if profesor_id in datos.profesores:
                                     profesor = datos.profesores[profesor_id]
                                     if (d_alt, b_alt) in profesor.disponibilidad:
-                                        slot_alternativo = (d_alt, b_alt)
-                                        break
+                                        # Verificar que no haya conflicto
+                                        if (profesor_id, d_alt, b_alt) not in profesores_ocupados:
+                                            slot_alternativo = (d_alt, b_alt)
+                                            break
                         
                         if slot_alternativo:
                             break
                     
+                    # Si no hay slot alternativo, intentar profesor alternativo
+                    if not slot_alternativo and materia_id in datos.materias:
+                        materia = datos.materias[materia_id]
+                        for prof_alt_id in materia.profesores:
+                            if prof_alt_id != profesor_id and prof_alt_id in datos.profesores:
+                                prof_alt = datos.profesores[prof_alt_id]
+                                # Buscar slot donde el profesor alternativo esté disponible
+                                for d_alt in DIAS:
+                                    for b_alt in datos.bloques_disponibles:
+                                        if (d_alt, b_alt) in slots_disponibles[curso_id]:
+                                            if (d_alt, b_alt) in prof_alt.disponibilidad:
+                                                if (prof_alt_id, d_alt, b_alt) not in profesores_ocupados:
+                                                    slot_alternativo = (d_alt, b_alt)
+                                                    profesor_alternativo = prof_alt_id
+                                                    break
+                                    
+                                    if slot_alternativo:
+                                        break
+                    
+                    # Recolocar si se encontró alternativa
                     if slot_alternativo:
-                        # Recolocar el conflicto
-                        del cromosoma_reparado.genes[(curso_id, dia, bloque)]
-                        cromosoma_reparado.genes[(curso_id, slot_alternativo[0], slot_alternativo[1])] = (materia_id, profesor_id)
-                        slots_ocupados[(curso_id, slot_alternativo[0], slot_alternativo[1])] = (materia_id, profesor_id)
-                        if (curso_id, dia, bloque) in slots_ocupados:
-                            del slots_ocupados[(curso_id, dia, bloque)]
+                        # Remover asignación original
+                        del cromosoma_reparado.genes[(curso_id, dia_orig, bloque_orig)]
+                        if (curso_id, dia_orig, bloque_orig) in slots_ocupados:
+                            del slots_ocupados[(curso_id, dia_orig, bloque_orig)]
+                        
+                        # Agregar nueva asignación
+                        nuevo_profesor = profesor_alternativo if profesor_alternativo else profesor_id
+                        cromosoma_reparado.genes[(curso_id, slot_alternativo[0], slot_alternativo[1])] = (materia_id, nuevo_profesor)
+                        slots_ocupados[(curso_id, slot_alternativo[0], slot_alternativo[1])] = (materia_id, nuevo_profesor)
+                        profesores_ocupados[(nuevo_profesor, slot_alternativo[0], slot_alternativo[1])] = curso_id
+                        
+                        # Actualizar slots disponibles
+                        if (slot_alternativo[0], slot_alternativo[1]) in slots_disponibles[curso_id]:
+                            slots_disponibles[curso_id].remove(slot_alternativo)
+                        
                         conflictos_resueltos += 1
                         estadisticas['conflictos_resueltos'] += 1
-                        break
+                        logger.debug(f"Conflicto resuelto: {curso_id} movido a {slot_alternativo} con profesor {nuevo_profesor}")
+                    else:
+                        logger.debug(f"No se pudo resolver conflicto para {curso_id} en {dia} bloque {bloque}")
         
         if not conflictos_encontrados:
             break
+        
+        logger.debug(f"Iteración {iteracion + 1}: {conflictos_resueltos} conflictos resueltos")
     
     # Actualizar el cromosoma original
     cromosoma.genes = cromosoma_reparado.genes
@@ -1074,15 +1404,126 @@ def repair_individual_robusto(cromosoma: Cromosoma, datos: DatosHorario) -> Tupl
 # Alias para compatibilidad
 reparar_cromosoma = repair_individual_robusto
 
+def mutacion_lns(cromosoma: Cromosoma, datos: DatosHorario, mapeos: Dict, porcentaje: float = 0.2) -> Cromosoma:
+    """
+    Operador LNS (Large Neighborhood Search) que destruye y reconstruye una porción del cromosoma.
+    
+    Args:
+        cromosoma: Cromosoma a mutar
+        datos: Datos del horario
+        mapeos: Mapeos de índices para conversión
+        porcentaje: Porcentaje de slots a destruir (0.2 = 20%)
+        
+    Returns:
+        Cromosoma mutado con LNS
+    """
+    cromosoma_lns = cromosoma.copy()
+    
+    # Convertir a arrays para operaciones eficientes
+    crom_compacto = dict_to_arrays(cromosoma_lns.genes, mapeos)
+    
+    # Elegir aleatoriamente: curso específico o día específico
+    if random.random() < 0.5:
+        # Destruir slots de un curso aleatorio
+        curso_idx = random.randint(0, mapeos['n_cursos'] - 1)
+        slots_a_destruir = set()
+        
+        for slot_id in range(crom_compacto.n_slots):
+            curso_slot, _, _ = crom_compacto.slot_to_coords(slot_id)
+            if curso_slot == curso_idx:
+                slots_a_destruir.add(slot_id)
+    else:
+        # Destruir slots de un día aleatorio
+        dia_idx = random.randint(0, mapeos['n_dias'] - 1)
+        slots_a_destruir = set()
+        
+        for slot_id in range(crom_compacto.n_slots):
+            _, dia_slot, _ = crom_compacto.slot_to_coords(slot_id)
+            if dia_slot == dia_idx:
+                slots_a_destruir.add(slot_id)
+    
+    # Calcular cuántos slots destruir
+    n_slots_destruir = int(len(slots_a_destruir) * porcentaje)
+    slots_destruidos = random.sample(list(slots_a_destruir), min(n_slots_destruir, len(slots_a_destruir)))
+    
+    # Destruir slots seleccionados
+    for slot_id in slots_destruidos:
+        crom_compacto.materia_por_slot[slot_id] = -1
+        crom_compacto.profesor_por_slot[slot_id] = -1
+    
+    # Reconstruir greedy: primero materias más difíciles
+    slots_vacios = [slot_id for slot_id in slots_destruidos]
+    random.shuffle(slots_vacios)  # Orden aleatorio para diversidad
+    
+    for slot_id in slots_vacios:
+        curso_idx, dia_idx, bloque_idx = crom_compacto.slot_to_coords(slot_id)
+        curso_id = mapeos['idx_to_curso'][curso_idx]
+        
+        # Obtener materias del curso
+        curso = datos.cursos[curso_id]
+        materias_disponibles = list(curso.materias)
+        
+        # Ordenar por dificultad (menos profesores primero)
+        materias_disponibles.sort(key=lambda m_id: len(datos.materias[m_id].profesores))
+        
+        # Intentar asignar materia
+        materia_asignada = False
+        for materia_id in materias_disponibles:
+            materia = datos.materias[materia_id]
+            
+            # Buscar profesor disponible
+            for profesor_id in materia.profesores:
+                if profesor_id not in datos.profesores:
+                    continue
+                    
+                profesor = datos.profesores[profesor_id]
+                
+                # Verificar disponibilidad
+                dia = mapeos['idx_to_dia'][dia_idx]
+                bloque = mapeos['idx_to_bloque'][bloque_idx]
+                
+                if (dia, bloque) not in profesor.disponibilidad:
+                    continue
+                
+                # Verificar que no haya conflicto
+                conflicto = False
+                for slot_check in range(crom_compacto.n_slots):
+                    if slot_check == slot_id:
+                        continue
+                    
+                    if (crom_compacto.profesor_por_slot[slot_check] == mapeos['profesor_to_idx'][profesor_id] and
+                        crom_compacto.slot_to_coords(slot_check)[1] == dia_idx and
+                        crom_compacto.slot_to_coords(slot_check)[2] == bloque_idx):
+                        conflicto = True
+                        break
+                
+                if not conflicto:
+                    # Asignar
+                    crom_compacto.materia_por_slot[slot_id] = mapeos['materia_to_idx'][materia_id]
+                    crom_compacto.profesor_por_slot[slot_id] = mapeos['profesor_to_idx'][profesor_id]
+                    materia_asignada = True
+                    break
+            
+            if materia_asignada:
+                break
+    
+    # Convertir de vuelta a dict
+    cromosoma_lns.genes = arrays_to_dict(crom_compacto)
+    
+    return cromosoma_lns
+
 def evaluar_poblacion_paralelo(poblacion, datos, workers):
     """
     Evalúa la población en paralelo si hay workers>1 y joblib disponible; en caso contrario, secuencial.
     Incluye validación y reparación de individuos inviables.
     """
     try:
-        n = int(workers or 1)
+        base = int(workers) if workers else cpu_count() // 2
+        n = max(1, min(base, len(poblacion)))
+        logger.info(f"Evaluación paralela configurada: {n} workers (población: {len(poblacion)})")
     except Exception:
         n = 1
+        logger.warning("Error al configurar workers, usando evaluación secuencial")
     
     estadisticas_generacion = {
         'individuos_reparados': 0,
@@ -1212,6 +1653,10 @@ def mutacion_segura(cromosoma: Cromosoma, datos: DatosHorario, prob_mutacion: fl
     
     # Mutar genes seleccionados
     for gen in genes_a_mutar:
+        # Verificar que el gen aún existe (puede haber sido eliminado por mutaciones previas)
+        if gen not in cromosoma_mutado.genes:
+            continue
+            
         curso_id, dia, bloque = gen
         materia_id, profesor_id = cromosoma_mutado.genes[gen]
         
@@ -1273,7 +1718,7 @@ def mutacion_segura(cromosoma: Cromosoma, datos: DatosHorario, prob_mutacion: fl
             cromosoma_mutado.genes[nuevo_slot] = (materia_id, profesor_id)
     
     # Reparar cromosoma mutado después de la mutación
-            repair_individual_robusto(cromosoma_mutado, datos)
+    repair_individual_robusto(cromosoma_mutado, datos)
     
     return cromosoma_mutado
 
@@ -1321,6 +1766,13 @@ def generar_horarios_genetico_robusto(
     
     # Cargar datos
     datos = cargar_datos()
+    
+    # Crear mapeos de índices para representación compacta
+    mapeos = crear_mapeos_indices(datos)
+    logger.info(f"Mapeos de índices creados: {mapeos['n_cursos']} cursos, {mapeos['n_dias']} días, {mapeos['n_bloques']} bloques")
+    
+    # Warm-up de Numba para evitar "arranque eterno"
+    warmup_numba(datos)
     
     # Pre-validación dura antes de generar población
     logger.info("Realizando pre-validación dura...")
@@ -1469,15 +1921,46 @@ def generar_horarios_genetico_robusto(
             if random.random() < prob_mutacion:
                 nueva_poblacion[i] = mutacion_segura(nueva_poblacion[i], datos, 0.1)
         
+        # Aplicar LNS (Large Neighborhood Search) cada LNS_FREQ generaciones
+        if generacion % LNS_FREQ == 0 and generacion > 0:
+            logger.info(f"Aplicando LNS en generación {generacion}")
+            n_individuos_lns = int(len(nueva_poblacion) * LNS_RATIO)
+            indices_lns = random.sample(range(elite, len(nueva_poblacion)), n_individuos_lns)
+            
+            for idx in indices_lns:
+                nueva_poblacion[idx] = mutacion_lns(nueva_poblacion[idx], datos, mapeos, 0.2)
+        
         # Ajustar tamaño de población
         nueva_poblacion = nueva_poblacion[:poblacion_size]
         poblacion = nueva_poblacion
         
-        # Logging de progreso
+        # Logging de progreso con métricas detalladas
         if generacion % 10 == 0:
             tiempo_generacion = time.time() - generacion_inicio
             logger.info(f"Generación {generacion}: Fitness={fitness_actual:.2f}, "
-                       f"Promedio={fitness_promedio:.2f}, Tiempo={tiempo_generacion:.2f}s")
+                       f"Promedio={fitness_promedio:.2f}, Tiempo={tiempo_generacion:.2f}s, "
+                       f"Ocupación={porcentaje_llenado:.1f}%, Workers={workers}")
+        
+        # Adaptación dinámica si hay estancamiento
+        if generaciones_sin_mejora >= paciencia // 2:
+            # Subir probabilidad de mutación temporalmente
+            prob_mutacion_adaptativa = min(0.5, prob_mutacion * 1.5)
+            logger.info(f"Estancamiento detectado: aumentando mutación a {prob_mutacion_adaptativa:.3f}")
+        else:
+            prob_mutacion_adaptativa = prob_mutacion
+        
+        # Adaptación si el tiempo de generación es muy alto
+        if generacion > 0 and tiempo_generacion > 2 * tiempo_promedio_generaciones:
+            workers_adaptativo = max(1, workers // 2)
+            logger.info(f"Tiempo de generación alto ({tiempo_generacion:.2f}s): reduciendo workers a {workers_adaptativo}")
+        else:
+            workers_adaptativo = workers
+        
+        # Calcular tiempo promedio de las últimas generaciones
+        if generacion > 0:
+            tiempo_promedio_generaciones = (tiempo_promedio_generaciones * (generacion - 1) + tiempo_generacion) / generacion
+        else:
+            tiempo_promedio_generaciones = tiempo_generacion
     
     # Obtener mejor solución
     mejor_cromosoma = poblacion[0]
@@ -1488,11 +1971,79 @@ def generar_horarios_genetico_robusto(
     
     if not resultado_validacion.es_valido:
         logger.error("La solución final no es válida")
-        return {
-            'status': 'error',
-            'mensaje': 'No se pudo generar una solución válida',
-            'errores': [e.detalles for e in resultado_validacion.errores]
-        }
+        
+        # Intentar fallback con OR-Tools si está disponible
+        if os.environ.get('HORARIOS_ORTOOLS') == '1':
+            try:
+                from .ortools_base import generar_horario_ortools
+                logger.info("Intentando fallback con OR-Tools...")
+                
+                horario_ortools = generar_horario_ortools(datos, mapeos)
+                if horario_ortools:
+                    logger.info("OR-Tools generó horario base válido, continuando con GA...")
+                    
+                    # Crear cromosoma desde OR-Tools y continuar algunas generaciones
+                    cromosoma_ortools = Cromosoma()
+                    cromosoma_ortools.genes = horario_ortools
+                    
+                    # Continuar GA por algunas generaciones más para optimizar preferencias blandas
+                    for gen_extra in range(min(20, generaciones // 4)):
+                        # Evaluar y mejorar el cromosoma de OR-Tools
+                        fitness, conflictos = evaluar_fitness(cromosoma_ortools, datos)
+                        cromosoma_ortools.fitness = fitness
+                        cromosoma_ortools.conflictos = conflictos
+                        
+                        # Aplicar mutaciones suaves
+                        cromosoma_ortools = mutacion_segura(cromosoma_ortools, datos, 0.1)
+                        
+                        # Reparar si es necesario
+                        if conflictos > 0:
+                            repair_individual_robusto(cromosoma_ortools, datos)
+                        
+                        # Re-evaluar
+                        fitness, conflictos = evaluar_fitness(cromosoma_ortools, datos)
+                        cromosoma_ortools.fitness = fitness
+                        cromosoma_ortools.conflictos = conflictos
+                        
+                        logger.info(f"Generación extra {gen_extra + 1}: Fitness={fitness:.2f}, Conflictos={conflictos}")
+                    
+                    # Usar el cromosoma mejorado de OR-Tools
+                    mejor_cromosoma = cromosoma_ortools
+                    horarios_dict = _cromosoma_a_dict(mejor_cromosoma, datos)
+                    
+                    # Re-validar
+                    resultado_validacion = validar_antes_de_persistir(horarios_dict)
+                    if resultado_validacion.es_valido:
+                        logger.info("✅ Fallback OR-Tools exitoso: solución válida generada")
+                    else:
+                        logger.warning("Fallback OR-Tools no pudo generar solución válida")
+                        return {
+                            'status': 'error',
+                            'mensaje': 'No se pudo generar una solución válida ni con GA ni con OR-Tools',
+                            'errores': [e.detalles for e in resultado_validacion.errores]
+                        }
+                        
+                else:
+                    logger.warning("OR-Tools no pudo generar horario base")
+                    return {
+                        'status': 'error',
+                        'mensaje': 'No se pudo generar una solución válida',
+                        'errores': [e.detalles for e in resultado_validacion.errores]
+                    }
+                    
+            except ImportError:
+                logger.warning("OR-Tools no disponible para fallback")
+                return {
+                    'status': 'error',
+                    'mensaje': 'No se pudo generar una solución válida',
+                    'errores': [e.detalles for e in resultado_validacion.errores]
+                }
+        else:
+            return {
+                'status': 'error',
+                'mensaje': 'No se pudo generar una solución válida',
+                'errores': [e.detalles for e in resultado_validacion.errores]
+            }
     
     # Persistir en BD con transacción atómica
     try:
@@ -1500,10 +2051,10 @@ def generar_horarios_genetico_robusto(
             # Limpiar horarios existentes
             Horario.objects.all().delete()
             
-            # Crear nuevos horarios
-            horarios_creados = []
+            # Construir lista de objetos Horario para bulk_create
+            horarios_objs = []
             for horario_data in horarios_dict:
-                horario = Horario.objects.create(
+                horario = Horario(
                     curso_id=horario_data['curso_id'],
                     materia_id=horario_data['materia_id'],
                     profesor_id=horario_data['profesor_id'],
@@ -1511,7 +2062,10 @@ def generar_horarios_genetico_robusto(
                     dia=horario_data['dia'],
                     bloque=horario_data['bloque']
                 )
-                horarios_creados.append(horario)
+                horarios_objs.append(horario)
+            
+            # Persistir masivamente con bulk_create
+            horarios_creados = Horario.objects.bulk_create(horarios_objs, batch_size=1000)
             
             logger.info(f"Persistidos {len(horarios_creados)} horarios en BD")
             
@@ -1543,6 +2097,8 @@ def generar_horarios_genetico_robusto(
     }
     
     logger.info(f"Algoritmo completado exitosamente en {tiempo_total:.2f} segundos")
+    logger.info(f"Total de horarios generados: {len(horarios_creados)}")
+    logger.info(f"Conflictos finales: {mejor_cromosoma.conflictos}")
     return metricas
 
 def generar_horarios_genetico(

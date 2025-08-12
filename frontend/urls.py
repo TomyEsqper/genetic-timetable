@@ -25,4 +25,11 @@ urlpatterns = [
 
     path('pdf/curso/<int:curso_id>/', views.pdf_curso, name='pdf_curso'),
 
+    # Nuevas vistas con paginación
+    path('cursos/', views.lista_cursos, name='lista_cursos'),
+    path('profesores/', views.lista_profesores, name='lista_profesores'),
+
+    # Vistas AJAX
+    path('horario-ajax/', views.horario_ajax, name='horario_ajax'),
+    path('estadisticas-ajax/', views.estadisticas_ajax, name='estadisticas_ajax'),
 ]

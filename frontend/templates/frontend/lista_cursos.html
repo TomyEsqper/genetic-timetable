@@ -1,0 +1,114 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Cursos - Generador de Horarios</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans p-6">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded shadow p-6 mb-6">
+      <h1 class="text-3xl font-bold text-blue-900 mb-4">📚 Lista de Cursos</h1>
+      
+      <!-- Filtros -->
+      <div class="mb-6">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+          <div>
+            <label class="block text-sm font-medium mb-1">Filtrar por Grado</label>
+            <select name="grado" class="p-2 border rounded focus:ring-2 focus:ring-blue-500">
+              <option value="">Todos los grados</option>
+              {% for grado in grados %}
+              <option value="{{ grado }}" {% if request.GET.grado == grado %}selected{% endif %}>{{ grado }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+            🔍 Filtrar
+          </button>
+          <a href="{% url 'lista_cursos' %}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors">
+            🗑️ Limpiar
+          </a>
+        </form>
+      </div>
+    </div>
+
+    <!-- Lista de cursos -->
+    <div class="bg-white rounded shadow p-6">
+      {% if page_obj %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {% for curso in page_obj %}
+          <div class="border rounded-lg p-4 hover:shadow-lg transition-shadow">
+            <div class="flex justify-between items-start mb-3">
+              <h3 class="text-lg font-semibold text-gray-800">{{ curso.nombre }}</h3>
+              <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{{ curso.grado.nombre }}</span>
+            </div>
+            
+            <div class="space-y-2 text-sm text-gray-600">
+              <p><strong>Grado:</strong> {{ curso.grado.nombre }}</p>
+              {% if curso.aula_fija %}
+              <p><strong>Aula fija:</strong> {{ curso.aula_fija.nombre }}</p>
+              {% else %}
+              <p><strong>Aula fija:</strong> <span class="text-gray-400">No asignada</span></p>
+              {% endif %}
+            </div>
+            
+            <div class="mt-4 flex gap-2">
+              <a href="{% url 'horario_curso' curso.id %}" 
+                 class="flex-1 bg-blue-600 text-white text-center py-2 rounded hover:bg-blue-700 transition-colors text-sm">
+                Ver horario
+              </a>
+              <a href="{% url 'pdf_curso' curso.id %}" 
+                 class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 transition-colors text-sm">
+                📄
+              </a>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="mt-8 flex justify-center">
+          <nav class="flex items-center space-x-2">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.grado %}&grado={{ request.GET.grado }}{% endif %}" 
+               class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+              ← Anterior
+            </a>
+            {% endif %}
+            
+            <span class="px-3 py-2 bg-blue-600 text-white rounded">
+              Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.grado %}&grado={{ request.GET.grado }}{% endif %}" 
+               class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+              Siguiente →
+            </a>
+            {% endif %}
+          </nav>
+        </div>
+        {% endif %}
+        
+      {% else %}
+        <div class="text-center py-12">
+          <div class="text-6xl text-gray-300 mb-4">📚</div>
+          <h2 class="text-2xl font-bold text-gray-600 mb-2">No se encontraron cursos</h2>
+          <p class="text-gray-500">Intenta ajustar los filtros o crear nuevos cursos.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Navegación -->
+    <div class="mt-6 text-center">
+      <a href="{% url 'dashboard' %}" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors">
+        ⬅ Volver al Dashboard
+      </a>
+    </div>
+  </div>
+</body>
+</html>

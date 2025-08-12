@@ -1,0 +1,81 @@
+{% if horarios_por_curso %}
+<div class="bg-white rounded shadow p-6 mb-6">
+  <h2 class="text-2xl font-bold text-blue-900 mb-6">📅 Horario Semanal</h2>
+  
+  <!-- Filtros -->
+  <div class="mb-4 flex flex-wrap gap-2">
+    <button class="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors" 
+            onclick="filtrarHorarios('todos')">
+      Todos los cursos
+    </button>
+    {% for curso, horarios in horarios_por_curso.items %}
+    <button class="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors" 
+            onclick="filtrarHorarios('{{ curso.id }}')">
+      {{ curso.nombre }}
+    </button>
+    {% endfor %}
+  </div>
+  
+  {% for curso, horarios in horarios_por_curso.items %}
+  <div class="mb-8 horario-curso" data-curso-id="{{ curso.id }}">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-semibold text-gray-800">{{ curso.nombre }}</h3>
+      <div class="flex gap-2">
+        <a href="{% url 'horario_curso' curso.id %}" 
+           class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm">
+          Ver detalle
+        </a>
+        <a href="{% url 'pdf_curso' curso.id %}" 
+           class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm">
+          📄 PDF
+        </a>
+      </div>
+    </div>
+    
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse border border-gray-300">
+        <thead>
+          <tr class="bg-gray-100">
+            <th class="border border-gray-300 p-2 text-center font-semibold">Hora</th>
+            {% for dia in dias %}
+            <th class="border border-gray-300 p-2 text-center font-semibold">{{ dia|title }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for bloque in bloques_disponibles %}
+          <tr>
+            <td class="border border-gray-300 p-2 text-center font-medium bg-gray-50">
+              Bloque {{ bloque }}
+            </td>
+            {% for dia in dias %}
+            <td class="border border-gray-300 p-2 text-center min-h-[60px] hover:bg-gray-50 transition-colors">
+              {% for horario in horarios %}
+                {% if horario.dia == dia and horario.bloque == bloque %}
+                <div class="text-sm p-1 rounded" 
+                     style="background-color: {% cycle '#e3f2fd' '#f3e5f5' '#e8f5e8' '#fff3e0' '#fce4ec' as colors %}">
+                  <div class="font-semibold text-blue-700">{{ horario.materia.nombre }}</div>
+                  <div class="text-gray-600 text-xs">{{ horario.profesor.nombre }}</div>
+                  {% if horario.aula %}
+                  <div class="text-gray-500 text-xs">{{ horario.aula.nombre }}</div>
+                  {% endif %}
+                </div>
+                {% endif %}
+              {% endfor %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded shadow p-6 text-center">
+  <h2 class="text-2xl font-bold text-gray-600 mb-4">📅 Horario Semanal</h2>
+  <p class="text-gray-500 mb-4">No hay horarios generados. Use el formulario arriba para generar horarios.</p>
+  <div class="text-6xl text-gray-300 mb-4">📋</div>
+</div>
+{% endif %} 
