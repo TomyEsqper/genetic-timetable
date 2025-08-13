@@ -71,7 +71,7 @@ python manage.py createsuperuser
 | Cursos          | GET    | `/api/cursos/`        | Lista de cursos                |
 | Aulas           | GET    | `/api/aulas/`         | Lista de aulas                 |
 | Horarios        | GET    | `/api/horarios/`      | Consulta de horarios generados |
-| Generar Horario | POST   | `/api/generar/`       | Ejecuta el algoritmo genético  |
+| Generar Horario | POST   | `/api/generar-horario/` | Ejecuta el algoritmo genético  |
 | Autenticación   | POST   | `/api/token/`         | Login con usuario/contraseña   |
 | Token Refresh   | POST   | `/api/token/refresh/` | Renueva el token JWT           |
 

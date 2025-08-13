@@ -1,0 +1,171 @@
+<!-- Configuración de Tailwind CSS -->
+<script>
+// Configuración condicional de Tailwind CSS
+(function() {
+  const isDevelopment = window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1' || 
+                       window.location.hostname.includes('dev');
+  
+  if (isDevelopment) {
+    // En desarrollo, usar CDN con configuración personalizada
+    const script = document.createElement('script');
+    script.src = 'https://cdn.tailwindcss.com';
+    script.onload = function() {
+      // Configuración personalizada para desarrollo
+      if (window.tailwind) {
+        window.tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                primary: {
+                  50: '#eff6ff',
+                  100: '#dbeafe',
+                  200: '#bfdbfe',
+                  300: '#93c5fd',
+                  400: '#60a5fa',
+                  500: '#3b82f6',
+                  600: '#2563eb',
+                  700: '#1d4ed8',
+                  800: '#1e40af',
+                  900: '#1e3a8a',
+                }
+              }
+            }
+          }
+        };
+        console.log('🎨 Tailwind CSS CDN cargado para desarrollo');
+      }
+    };
+    document.head.appendChild(script);
+  } else {
+    // En producción, usar archivo local compilado
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/static/css/tailwind.min.css';
+    document.head.appendChild(link);
+    console.log('🚀 Tailwind CSS local cargado para producción');
+  }
+})();
+</script>
+
+<!-- Estilos CSS personalizados para componentes -->
+<style>
+/* Estilos base para componentes */
+.component-base {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+/* Estilos para botones */
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+.btn-success {
+  @apply bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+.btn-warning {
+  @apply bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+.btn-error {
+  @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+/* Estilos para inputs */
+.input-base {
+  @apply w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all;
+}
+
+.input-error {
+  @apply border-red-500 focus:ring-red-500 focus:border-red-500;
+}
+
+.input-success {
+  @apply border-green-500 focus:ring-green-500 focus:border-green-500;
+}
+
+/* Estilos para tooltips */
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  width: 200px;
+  background-color: #1f2937;
+  color: white;
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px 12px;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -100px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Estilos para notificaciones */
+.notification {
+  @apply fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300;
+}
+
+.notification-success {
+  @apply bg-green-500 text-white;
+}
+
+.notification-error {
+  @apply bg-red-500 text-white;
+}
+
+.notification-info {
+  @apply bg-blue-500 text-white;
+}
+
+.notification-warning {
+  @apply bg-yellow-500 text-white;
+}
+
+/* Animaciones personalizadas */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none;
+  }
+  
+  .mobile-full {
+    width: 100%;
+  }
+}
+
+@media (min-width: 769px) {
+  .desktop-hidden {
+    display: none;
+  }
+}
+</style> 
