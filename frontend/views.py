@@ -26,9 +26,17 @@ def get_dias_clase():
     except Exception:
         return ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
 
-# Obtener días dinámicamente
+def get_bloques_clase():
+    """Obtiene los números de bloque de tipo 'clase' ordenados desde la BD."""
+    try:
+        return list(BloqueHorario.objects.filter(tipo='clase').order_by('numero').values_list('numero', flat=True))
+    except Exception:
+        # Fallback común si aún no hay migraciones aplicadas
+        return [1, 2, 3, 4, 5, 6]
+
+# Obtener días y bloques dinámicamente
 DIAS = get_dias_clase()
-BLOQUES = [1, 2, 3, 4, 5, 6]
+BLOQUES = get_bloques_clase()
 HORARIO_TEMPLATE = 'frontend/horario.html'
 
 def index(request):

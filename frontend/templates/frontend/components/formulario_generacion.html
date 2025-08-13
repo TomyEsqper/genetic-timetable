@@ -1,31 +1,99 @@
 <div class="bg-white rounded shadow p-6 mb-6">
   <h3 class="text-lg font-semibold mb-4">🚀 Generar Horarios</h3>
+  
+  <!-- Información general del algoritmo -->
+  <div class="mb-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+    <div class="flex items-start">
+      <div class="flex-shrink-0">
+        <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+        </svg>
+      </div>
+      <div class="ml-3 flex-1">
+        <p class="text-sm text-blue-700 mb-3">
+          <strong>💡 Consejo:</strong> Para mayor estabilidad, usa parámetros conservadores: población pequeña (25-30), pocas generaciones (60-80), y mutación baja (0.1-0.15).
+        </p>
+        
+        <!-- Botones de configuración rápida -->
+        <div class="flex flex-wrap gap-2">
+          <button type="button" 
+                  class="config-rapida-btn px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors border border-blue-300"
+                  data-config="estable">
+            🚀 Configuración Estable
+          </button>
+          <button type="button" 
+                  class="config-rapida-btn px-3 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors border border-green-300"
+                  data-config="rapida">
+            ⚡ Configuración Rápida
+          </button>
+          <button type="button" 
+                  class="config-rapida-btn px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors border border-purple-300"
+                  data-config="calidad">
+            🎯 Configuración de Calidad
+          </button>
+          <button type="button" 
+                  class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors border border-gray-300"
+                  id="restaurar-default">
+            🔄 Restaurar Valores por Defecto
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <form method="post" action="{% url 'generar_horario' %}" class="grid grid-cols-1 md:grid-cols-3 gap-4" id="form-generacion">
     {% csrf_token %}
     
     <!-- Parámetros principales -->
     <div class="md:col-span-3 mb-4">
-      <h4 class="text-md font-medium text-gray-700 mb-2">Parámetros Principales</h4>
+      <h4 class="text-md font-medium text-gray-700 mb-2">📊 Parámetros Principales</h4>
     </div>
     
-    <div>
-      <label class="block text-sm font-medium mb-1">Población</label>
+    <div class="relative">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium">Población</label>
+        <button type="button" 
+                class="info-tooltip-trigger text-blue-500 hover:text-blue-700 transition-colors"
+                data-tooltip="La población es el número de horarios diferentes que el algoritmo mantiene en cada generación. Una población más grande puede encontrar mejores soluciones pero toma más tiempo. Recomendado: 25-80 para estabilidad, 100-200 para máxima calidad.">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
       <input type="number" name="poblacion_size" value="80" min="20" max="200" 
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
              title="Número de individuos en la población">
       <p class="text-xs text-gray-500 mt-1">20-200 individuos</p>
     </div>
     
-    <div>
-      <label class="block text-sm font-medium mb-1">Generaciones</label>
+    <div class="relative">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium">Generaciones</label>
+        <button type="button" 
+                class="info-tooltip-trigger text-blue-500 hover:text-blue-700 transition-colors"
+                data-tooltip="Las generaciones son las iteraciones del algoritmo. En cada generación, los horarios evolucionan para encontrar mejores soluciones. Más generaciones = mejor calidad pero más tiempo. Recomendado: 60-120 para estabilidad, 300-500 para máxima calidad.">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
       <input type="number" name="generaciones" value="500" min="50" max="1000" 
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
              title="Número máximo de generaciones">
       <p class="text-xs text-gray-500 mt-1">50-1000 generaciones</p>
     </div>
     
-    <div>
-      <label class="block text-sm font-medium mb-1">Timeout (seg)</label>
+    <div class="relative">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium">Timeout (seg)</label>
+        <button type="button" 
+                class="info-tooltip-trigger text-blue-500 hover:text-blue-700 transition-colors"
+                data-tooltip="El timeout es el tiempo máximo que puede tomar la generación. Si se alcanza, el algoritmo se detiene y retorna la mejor solución encontrada hasta ese momento. Recomendado: 90-180 segundos para pruebas, 300-600 para producción.">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
       <input type="number" name="timeout_seg" value="180" min="60" max="600" 
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
              title="Tiempo máximo de ejecución">
@@ -34,31 +102,114 @@
     
     <!-- Parámetros de algoritmo -->
     <div class="md:col-span-3 mb-4">
-      <h4 class="text-md font-medium text-gray-700 mb-2">Parámetros del Algoritmo</h4>
+      <h4 class="text-md font-medium text-gray-700 mb-2">🧬 Parámetros del Algoritmo</h4>
     </div>
     
-    <div>
-      <label class="block text-sm font-medium mb-1">Prob. Cruce</label>
+    <div class="relative">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium">Prob. Cruce</label>
+        <button type="button" 
+                class="info-tooltip-trigger text-blue-500 hover:text-blue-700 transition-colors"
+                data-tooltip="La probabilidad de cruce determina qué tan frecuentemente dos horarios 'padres' combinan sus características para crear un horario 'hijo'. Valores altos (0.8-1.0) promueven la exploración, valores bajos (0.5-0.7) mantienen la estabilidad. Recomendado: 0.75-0.85.">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
       <input type="number" name="prob_cruce" value="0.85" min="0.1" max="1.0" step="0.05" 
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
              title="Probabilidad de cruce entre individuos">
       <p class="text-xs text-gray-500 mt-1">0.1-1.0</p>
     </div>
     
-    <div>
-      <label class="block text-sm font-medium mb-1">Prob. Mutación</label>
+    <div class="relative">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium">Prob. Mutación</label>
+        <button type="button" 
+                class="info-tooltip-trigger text-blue-500 hover:text-blue-700 transition-colors"
+                data-tooltip="La probabilidad de mutación determina qué tan frecuentemente se cambian aleatoriamente partes de un horario. Valores altos (0.3-0.5) introducen mucha variabilidad pero pueden ser inestables, valores bajos (0.05-0.15) mantienen la estabilidad. Recomendado: 0.1-0.2 para estabilidad.">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
       <input type="number" name="prob_mutacion" value="0.25" min="0.05" max="0.5" step="0.05" 
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
              title="Probabilidad de mutación">
       <p class="text-xs text-gray-500 mt-1">0.05-0.5</p>
     </div>
     
-    <div>
-      <label class="block text-sm font-medium mb-1">Elite</label>
+    <div class="relative">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium">Elite</label>
+        <button type="button" 
+                class="info-tooltip-trigger text-blue-500 hover:text-blue-700 transition-colors"
+                data-tooltip="El parámetro elite preserva los mejores horarios de cada generación sin modificarlos. Esto asegura que las mejores soluciones no se pierdan. Valores altos (5-10) mantienen más soluciones buenas pero reducen la exploración. Recomendado: 2-4 para balance.">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
       <input type="number" name="elite" value="4" min="1" max="10" 
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
              title="Número de mejores individuos a preservar">
       <p class="text-xs text-gray-500 mt-1">1-10 individuos</p>
+    </div>
+    
+    <!-- Parámetros adicionales -->
+    <div class="md:col-span-3 mb-4">
+      <h4 class="text-md font-medium text-gray-700 mb-2">⚙️ Parámetros Avanzados</h4>
+    </div>
+    
+    <div class="relative">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium">Paciencia</label>
+        <button type="button" 
+                class="info-tooltip-trigger text-blue-500 hover:text-blue-700 transition-colors"
+                data-tooltip="La paciencia es el número de generaciones sin mejora antes de detener el algoritmo. Valores altos (20-30) permiten más tiempo para encontrar mejoras, valores bajos (10-15) se detienen más rápido. Recomendado: 15-25.">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
+      <input type="number" name="paciencia" value="20" min="5" max="50" 
+             class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+             title="Generaciones sin mejora antes de parar">
+      <p class="text-xs text-gray-500 mt-1">5-50 generaciones</p>
+    </div>
+    
+    <div class="relative">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium">Workers</label>
+        <button type="button" 
+                class="info-tooltip-trigger text-blue-500 hover:text-blue-700 transition-colors"
+                data-tooltip="El número de workers determina cuántos procesos paralelos se usan para evaluar horarios. Más workers = más rápido pero menos estable. Para estabilidad máxima, usar 1 worker. Para velocidad, usar 2-4 workers. Recomendado: 1 para estabilidad, 2-3 para velocidad.">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
+      <input type="number" name="workers" value="1" min="1" max="8" 
+             class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+             title="Número de procesos paralelos">
+      <p class="text-xs text-gray-500 mt-1">1-8 procesos</p>
+    </div>
+    
+    <div class="relative">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium">Semilla</label>
+        <button type="button" 
+                class="info-tooltip-trigger text-blue-500 hover:text-blue-700 transition-colors"
+                data-tooltip="La semilla controla la aleatoriedad del algoritmo. Usar la misma semilla siempre produce el mismo resultado, útil para reproducir experimentos. Cambiar la semilla produce resultados diferentes. Recomendado: mantener fija para consistencia.">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
+      <input type="number" name="semilla" value="42" min="1" max="999999" 
+             class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+             title="Semilla para aleatoriedad">
+      <p class="text-xs text-gray-500 mt-1">1-999999</p>
     </div>
     
     <!-- Botón de envío -->
@@ -81,4 +232,67 @@
       Generando horarios... Por favor espere
     </div>
   </div>
-</div> 
+</div>
+
+<!-- Tooltip container -->
+<div id="tooltip" class="fixed hidden bg-gray-900 text-white text-sm px-3 py-2 rounded-lg shadow-lg z-50 max-w-xs pointer-events-none transform -translate-x-1/2"></div>
+
+<style>
+/* Estilos adicionales para tooltips */
+.info-tooltip-trigger {
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.info-tooltip-trigger:hover {
+  transform: scale(1.1);
+}
+
+.info-tooltip-trigger:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Animación del tooltip */
+#tooltip {
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) translateX(-50%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(-50%);
+  }
+}
+
+/* Mejoras en el formulario */
+.relative {
+  position: relative;
+}
+
+/* Estilo para los botones de información */
+.info-tooltip-trigger svg {
+  transition: all 0.2s ease;
+}
+
+.info-tooltip-trigger:hover svg {
+  transform: scale(1.1);
+  color: #1d4ed8;
+}
+
+/* Responsive para móviles */
+@media (max-width: 768px) {
+  .info-tooltip-trigger {
+    padding: 4px;
+  }
+  
+  #tooltip {
+    max-width: 280px;
+    font-size: 12px;
+  }
+}
+</style> 

@@ -28,8 +28,11 @@ class ViewsTestCase(TestCase):
         )
         
         # Crear bloques de horario
+        from datetime import time
         self.bloque1 = BloqueHorario.objects.create(
             numero=1,
+            hora_inicio=time(8, 0),
+            hora_fin=time(9, 0),
             tipo='clase'
         )
         
@@ -147,5 +150,7 @@ class ViewsTestCase(TestCase):
 
     def test_404_curso_inexistente(self):
         """Test que se maneja correctamente un curso inexistente"""
-        response = self.client.get(reverse('horario_curso', args=[999]))
+        non_existing_id = Curso.objects.order_by('-id').values_list('id', flat=True).first()
+        non_existing_id = (non_existing_id or 0) + 1
+        response = self.client.get(reverse('horario_curso', args=[non_existing_id]))
         self.assertEqual(response.status_code, 404)

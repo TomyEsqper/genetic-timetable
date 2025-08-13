@@ -9,6 +9,7 @@ import logging
 from typing import Dict, List, Set, Tuple, Any, Optional
 from dataclasses import dataclass
 from collections import defaultdict, Counter
+from django.db.models import Q
 
 from horarios.models import (
     Horario, Curso, Materia, Profesor, DisponibilidadProfesor,
@@ -142,13 +143,22 @@ class ValidadorHorarios:
     
     def _validar_disponibilidad_profesores(self, horarios: List[Dict]):
         """Valida que los profesores solo estén asignados en bloques disponibles."""
-        # Cargar disponibilidad de profesores
+        # Cargar disponibilidad de profesores de manera más eficiente
         disponibilidad = {}
-        for disp in DisponibilidadProfesor.objects.all():
+        profesores_sin_disponibilidad = set()
+        
+        # Cargar todos los profesores
+        todos_profesores = set(Profesor.objects.values_list('id', flat=True))
+        
+        # Cargar disponibilidad
+        for disp in DisponibilidadProfesor.objects.select_related('profesor').all():
             if disp.profesor_id not in disponibilidad:
                 disponibilidad[disp.profesor_id] = set()
             for bloque in range(disp.bloque_inicio, disp.bloque_fin + 1):
                 disponibilidad[disp.profesor_id].add((disp.dia, bloque))
+        
+        # Identificar profesores sin disponibilidad
+        profesores_sin_disponibilidad = todos_profesores - set(disponibilidad.keys())
         
         asignaciones_invalidas = []
         
@@ -165,7 +175,8 @@ class ValidadorHorarios:
                         'dia': dia,
                         'bloque': bloque,
                         'curso_id': horario['curso_id'],
-                        'materia_id': horario['materia_id']
+                        'materia_id': horario['materia_id'],
+                        'causa': 'fuera_disponibilidad'
                     })
             else:
                 # Profesor sin disponibilidad definida
@@ -180,11 +191,34 @@ class ValidadorHorarios:
                 })
         
         if asignaciones_invalidas:
+            # Agrupar por causa para mejor diagnóstico
+            por_causa = defaultdict(list)
+            for asignacion in asignaciones_invalidas:
+                por_causa[asignacion['causa']].append(asignacion)
+            
+            # Crear mensajes específicos por causa
+            mensajes = []
+            for causa, asignaciones in por_causa.items():
+                if causa == 'profesor_sin_disponibilidad':
+                    mensajes.append(f"{len(asignaciones)} asignaciones de profesores sin disponibilidad definida")
+                elif causa == 'fuera_disponibilidad':
+                    mensajes.append(f"{len(asignaciones)} asignaciones fuera de la disponibilidad del profesor")
+            
             self.errores.append(ErrorValidacion(
                 tipo="disponibilidad_profesor",
-                mensaje=f"Se encontraron {len(asignaciones_invalidas)} asignaciones fuera de disponibilidad",
+                mensaje=f"Se encontraron {len(asignaciones_invalidas)} asignaciones fuera de disponibilidad: {'; '.join(mensajes)}",
                 detalles={'asignaciones_invalidas': asignaciones_invalidas},
                 severidad="error"
+            ))
+        
+        # Advertencia sobre profesores sin disponibilidad
+        if profesores_sin_disponibilidad:
+            nombres_profesores = list(Profesor.objects.filter(id__in=profesores_sin_disponibilidad).values_list('nombre', flat=True))
+            self.advertencias.append(ErrorValidacion(
+                tipo="profesores_sin_disponibilidad",
+                mensaje=f"Hay {len(profesores_sin_disponibilidad)} profesores sin disponibilidad definida: {', '.join(nombres_profesores[:5])}{'...' if len(nombres_profesores) > 5 else ''}",
+                detalles={'profesores_sin_disponibilidad': list(profesores_sin_disponibilidad)},
+                severidad="advertencia"
             ))
     
     def _validar_bloques_por_semana(self, horarios: List[Dict]):
@@ -357,3 +391,162 @@ def validar_antes_de_persistir(horarios: List[Dict]) -> ResultadoValidacion:
     """
     validador = ValidadorHorarios()
     return validador.validar_horario_completo(horarios) 
+
+# Utilitarios de prevalidación data-driven
+
+def construir_semana_tipo_desde_bd() -> Dict[str, Any]:
+    """
+    Construye la "semana tipo" 100% desde datos en BD, sin asumir cantidades fijas.
+    Retorna un diccionario con:
+      - dias: lista ordenada de días presentes en datos (DisponibilidadProfesor o Horario)
+      - bloques_clase: lista ordenada de números de bloque con tipo='clase' (desde BloqueHorario)
+      - slots: lista de tuplas (dia, bloque) para cada combinación válida
+      - slot_to_idx: dict {(dia, bloque) -> idx}
+    Lanza ValueError si no hay datos suficientes (p.ej., no hay bloques tipo 'clase').
+    """
+    # Derivar días
+    dias_set = set(DisponibilidadProfesor.objects.values_list('dia', flat=True))
+    if not dias_set:
+        dias_set = set(Horario.objects.values_list('dia', flat=True))
+    dias = sorted(list(dias_set))
+    
+    # Derivar bloques de clase
+    bloques_clase_qs = BloqueHorario.objects.filter(tipo='clase').values_list('numero', flat=True)
+    bloques_clase = sorted(set(bloques_clase_qs))
+
+    if not dias or not bloques_clase:
+        raise ValueError("Datos insuficientes para construir semana tipo: faltan días o bloques tipo 'clase'")
+
+    slots = []
+    slot_to_idx = {}
+    for dia in dias:
+        for bloque in bloques_clase:
+            slots.append((dia, bloque))
+            slot_to_idx[(dia, bloque)] = len(slots) - 1
+
+    return {
+        'dias': dias,
+        'bloques_clase': bloques_clase,
+        'slots': slots,
+        'slot_to_idx': slot_to_idx,
+    }
+
+
+def calcular_oferta_vs_demanda_por_materia() -> Dict[str, Any]:
+    """
+    Calcula Demanda y Oferta por materia de forma data-driven.
+    - Demanda (por materia): suma de bloques_por_semana de todos los cursos que requieren esa materia.
+      Un curso requiere una materia si existe MateriaGrado(grado=curso.grado, materia).
+      Si no existe ninguna relación, la materia no se cuenta para ese curso.
+    - Oferta (por materia): suma de slots disponibles reales de profesores habilitados para esa materia,
+      considerando únicamente (dia, bloque) que sean tipo 'clase' y pertenezcan a la semana tipo derivada de BD.
+    Retorna un dict con:
+      - tabla: lista de filas {materia_id, materia_nombre, demanda_total, oferta_total, diferencia}
+      - resumen: {'materias_con_deficit': int, 'faltantes_totales': int}
+      - dimensiones: {'num_cursos', 'num_materias', 'num_profesores', 'num_slots'}
+      - semana_tipo: {'dias', 'bloques_clase'} para trazabilidad
+    """
+    semana = construir_semana_tipo_desde_bd()
+    dias = semana['dias']
+    bloques_clase = set(semana['bloques_clase'])
+    slots = semana['slots']
+
+    # Índices para performance
+    cursos = list(Curso.objects.select_related('grado').all())
+    materias = list(Materia.objects.all())
+    profesores = list(Profesor.objects.all())
+
+    # Mapear requerimientos curso->materias
+    mg_rel = set(MateriaGrado.objects.values_list('grado_id', 'materia_id'))
+
+    # Demanda por materia
+    demanda_por_materia = {m.id: 0 for m in materias}
+    for curso in cursos:
+        for materia in materias:
+            if (curso.grado_id, materia.id) in mg_rel:
+                demanda_por_materia[materia.id] += max(0, int(getattr(materia, 'bloques_por_semana', 0)))
+
+    # Oferta por materia: sumar slots disponibles de profesores habilitados
+    # Precomputar disponibilidad por profesor como set de (dia, bloque) filtrado a bloques tipo 'clase'
+    disp_por_prof = {}
+    for disp in DisponibilidadProfesor.objects.all():
+        rango = range(int(disp.bloque_inicio), int(disp.bloque_fin) + 1)
+        if disp.profesor_id not in disp_por_prof:
+            disp_por_prof[disp.profesor_id] = set()
+        for b in rango:
+            if b in bloques_clase:
+                disp_por_prof[disp.profesor_id].add((disp.dia, b))
+
+    # Profesores habilitados por materia
+    profs_por_materia = {}
+    for mp in MateriaProfesor.objects.values_list('materia_id', 'profesor_id'):
+        profs_por_materia.setdefault(mp[0], set()).add(mp[1])
+
+    oferta_por_materia = {m.id: 0 for m in materias}
+    for materia in materias:
+        profesores_hab = profs_por_materia.get(materia.id, set())
+        oferta = 0
+        for pid in profesores_hab:
+            slots_prof = disp_por_prof.get(pid, set())
+            # Limitar a semana tipo (dia presente y bloque de clase). slots_prof ya filtrado por bloque.
+            oferta += sum(1 for (d, b) in slots_prof if d in dias)
+        oferta_por_materia[materia.id] = oferta
+
+    # Construir tabla
+    tabla = []
+    materias_con_deficit = 0
+    faltantes_totales = 0
+    for materia in materias:
+        dem = demanda_por_materia.get(materia.id, 0)
+        ofe = oferta_por_materia.get(materia.id, 0)
+        diff = ofe - dem
+        if diff < 0:
+            materias_con_deficit += 1
+            faltantes_totales += (-diff)
+        tabla.append({
+            'materia_id': materia.id,
+            'materia_nombre': materia.nombre,
+            'demanda_total': int(dem),
+            'oferta_total': int(ofe),
+            'diferencia': int(diff),
+        })
+
+    dimensiones = {
+        'num_cursos': len(cursos),
+        'num_materias': len(materias),
+        'num_profesores': len(profesores),
+        'num_slots': len(slots),
+    }
+
+    resumen = {
+        'materias_con_deficit': materias_con_deficit,
+        'faltantes_totales': int(faltantes_totales),
+    }
+
+    return {
+        'tabla': tabla,
+        'resumen': resumen,
+        'dimensiones': dimensiones,
+        'semana_tipo': {'dias': dias, 'bloques_clase': sorted(list(bloques_clase))},
+    }
+
+
+def prevalidar_factibilidad_dataset() -> Dict[str, Any]:
+    """
+    Orquesta la prevalidación de factibilidad.
+    Si alguna materia tiene oferta < demanda, retorna {'viable': False, 'oferta_vs_demanda': ..., 'motivo': 'instancia_inviable'}.
+    En caso contrario, retorna {'viable': True, 'oferta_vs_demanda': ..., 'motivo': 'ok'}.
+    """
+    datos = calcular_oferta_vs_demanda_por_materia()
+    deficit = [fila for fila in datos['tabla'] if fila['diferencia'] < 0]
+    if deficit:
+        return {
+            'viable': False,
+            'motivo': 'instancia_inviable',
+            'oferta_vs_demanda': datos,
+        }
+    return {
+        'viable': True,
+        'motivo': 'ok',
+        'oferta_vs_demanda': datos,
+    } 

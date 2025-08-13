@@ -28,8 +28,6 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path
 
 schema_view = get_schema_view(
    openapi.Info(
@@ -47,8 +45,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # Frontend externo para el coordinador
-    path('horarios/', include('frontend.urls')),
-    path('api/', include('api.urls')),
+    path('', include('frontend.urls')),
     path('api/', include('api.urls')),
     path('api-token-auth/', drf_views.obtain_auth_token),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),

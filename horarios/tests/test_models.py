@@ -248,8 +248,11 @@ class HorarioModelTest(TestCase):
             nombre='AULA-101',
             capacidad=40
         )
+        from datetime import time
         self.bloque = BloqueHorario.objects.create(
             numero=1,
+            hora_inicio=time(8, 0),
+            hora_fin=time(9, 0),
             tipo='clase'
         )
         

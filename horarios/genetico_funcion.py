@@ -1,7 +1,54 @@
-from horarios.models import Horario
+from horarios.models import Horario, Profesor, Materia, Curso, Aula, BloqueHorario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, ConfiguracionColegio
 from django.conf import settings
 import os
+import logging
 from .genetico import generar_horarios_genetico_robusto
+from .validadores import prevalidar_factibilidad_dataset
+
+logger = logging.getLogger(__name__)
+
+def validar_prerrequisitos_criticos():
+    """
+    Validaciones imprescindibles que cortan antes de ejecutar el algoritmo genético.
+    Retorna lista de errores. Si está vacía, se puede proceder.
+    """
+    errores = []
+    
+    # 1. Profesores sin disponibilidad
+    profesores_sin_disponibilidad = Profesor.objects.exclude(
+        id__in=DisponibilidadProfesor.objects.values_list('profesor', flat=True)
+    )
+    if profesores_sin_disponibilidad.exists():
+        nombres = [p.nombre for p in profesores_sin_disponibilidad]
+        errores.append(f"Profesores sin disponibilidad: {', '.join(nombres)}")
+    
+    # 2. Materias del plan sin profesores habilitados
+    materias_sin_profesor = MateriaGrado.objects.exclude(
+        materia__in=MateriaProfesor.objects.values_list('materia', flat=True)
+    )
+    if materias_sin_profesor.exists():
+        nombres = [f"{mg.materia.nombre} ({mg.grado.nombre})" for mg in materias_sin_profesor]
+        errores.append(f"Materias sin profesor: {', '.join(nombres)}")
+    
+    # 3. Bloques por semana inviables: validar solo que sean valores no negativos
+    for mg in MateriaGrado.objects.all():
+        if mg.materia.bloques_por_semana < 0:
+            errores.append(f"Materia {mg.materia.nombre} tiene bloques_por_semana negativo")
+    
+    # 4. Bloques no tipo "clase" pueden existir (descanso/almuerzo). No es error previo.
+    
+    # 5. Aula fija no asignada a un curso
+    aulas_fijas_sin_curso = Aula.objects.filter(
+        id__in=Curso.objects.values_list('aula_fija', flat=True)
+    ).exclude(
+        id__in=Curso.objects.values_list('aula_fija', flat=True).filter(aula_fija__isnull=False)
+    )
+    if aulas_fijas_sin_curso.exists():
+        errores.append("Hay inconsistencias en la asignación de aulas fijas")
+    
+    # 6. La factibilidad global se valida con oferta vs demanda por materia antes del GA
+    
+    return errores
 
 def generar_horarios_genetico(
     poblacion_size: int = None,
@@ -12,7 +59,9 @@ def generar_horarios_genetico(
     paciencia: int = None,
     timeout_seg: int = None,
     semilla: int = 42,
-    workers: int = None
+    workers: int = None,
+    tournament_size: int = 3,
+    random_immigrants_rate: float = 0.05
 ):
     """
     Función principal para generar horarios utilizando el algoritmo genético robusto.
@@ -27,6 +76,8 @@ def generar_horarios_genetico(
         timeout_seg: Timeout en segundos
         semilla: Semilla para reproducibilidad
         workers: Número de workers para paralelización
+        tournament_size: Tamaño del torneo para selección (default: 3)
+        random_immigrants_rate: Porcentaje de inmigrantes aleatorios (default: 0.05)
         
     Returns:
         Diccionario con métricas y resultados
@@ -48,21 +99,47 @@ def generar_horarios_genetico(
         if timeout_seg is None:
             timeout_seg = 60
         
-        print(f"🚀 Modo rápido activado: población={poblacion_size}, generaciones={generaciones}, elite={elite}, workers={workers}")
+        logger.info(f"Modo rápido activado: población={poblacion_size}, generaciones={generaciones}, elite={elite}, workers={workers}")
     else:
-        # Defaults normales para producción
+        # Defaults optimizados para producción
         if poblacion_size is None:
-            poblacion_size = 100
+            poblacion_size = 200  # Aumentado para mejor exploración
         if generaciones is None:
-            generaciones = 500
+            generaciones = 800     # Aumentado para convergencia
         if elite is None:
-            elite = 4
+            elite = 10             # 5% de élite
         if paciencia is None:
-            paciencia = 25
+            paciencia = 50         # Más paciencia para evitar convergencia prematura
         if timeout_seg is None:
-            timeout_seg = 180
+            timeout_seg = 900      # 15 minutos máximo
+        if workers is None:
+            workers = min(4, os.cpu_count())  # Usar hasta 4 cores
     
-    return generar_horarios_genetico_robusto(
+    # Prevalidación data-driven (oferta vs demanda)
+    pre = prevalidar_factibilidad_dataset()
+    if not pre.get('viable', False):
+        return {
+            'status': 'error',
+            'mensaje': 'instancia_inviable',
+            'oferta_vs_demanda': pre.get('oferta_vs_demanda', {}),
+        }
+
+    # Configurar semilla global para reproducibilidad opcional
+    import random
+    import numpy as np
+    random.seed(semilla)
+    np.random.seed(semilla)
+    
+    # Intentar configurar semilla para otras librerías
+    try:
+        import os
+        os.environ['PYTHONHASHSEED'] = str(semilla)
+    except:
+        pass
+    
+    logger.info(f"Configuración optimizada: población={poblacion_size}, generaciones={generaciones}, elite={elite}, workers={workers}")
+    
+    resultado = generar_horarios_genetico_robusto(
         poblacion_size=poblacion_size,
         generaciones=generaciones,
         prob_cruce=prob_cruce,
@@ -73,3 +150,7 @@ def generar_horarios_genetico(
         semilla=semilla,
         workers=workers
     )
+    # Adjuntar tabla oferta_vs_demanda para trazabilidad
+    if isinstance(resultado, dict):
+        resultado['oferta_vs_demanda'] = prevalidar_factibilidad_dataset()
+    return resultado

@@ -61,6 +61,172 @@ function cargarEstadisticas() {
     });
 }
 
+// Sistema de tooltips para información de parámetros
+function initTooltips() {
+  const tooltipTriggers = document.querySelectorAll('.info-tooltip-trigger');
+  const tooltip = document.getElementById('tooltip');
+  
+  tooltipTriggers.forEach(trigger => {
+    trigger.addEventListener('mouseenter', function(e) {
+      const tooltipText = this.getAttribute('data-tooltip');
+      if (tooltipText && tooltip) {
+        tooltip.textContent = tooltipText;
+        tooltip.classList.remove('hidden');
+        
+        // Posicionar tooltip
+        const rect = this.getBoundingClientRect();
+        tooltip.style.left = rect.left + 'px';
+        tooltip.style.top = (rect.bottom + 10) + 'px';
+      }
+    });
+    
+    trigger.addEventListener('mouseleave', function() {
+      if (tooltip) {
+        tooltip.classList.add('hidden');
+      }
+    });
+  });
+  
+  // Ocultar tooltip al mover el mouse fuera
+  document.addEventListener('mouseleave', function() {
+    if (tooltip) {
+      tooltip.classList.add('hidden');
+    }
+  });
+}
+
+// Sistema de configuración rápida de parámetros
+function initConfiguracionRapida() {
+  const configButtons = document.querySelectorAll('.config-rapida-btn');
+  
+  const configuraciones = {
+    estable: {
+      poblacion_size: 30,
+      generaciones: 80,
+      timeout_seg: 120,
+      prob_cruce: 0.8,
+      prob_mutacion: 0.12,
+      elite: 3,
+      paciencia: 20,
+      workers: 1,
+      semilla: 42
+    },
+    rapida: {
+      poblacion_size: 20,
+      generaciones: 40,
+      timeout_seg: 60,
+      prob_cruce: 0.7,
+      prob_mutacion: 0.1,
+      elite: 2,
+      paciencia: 10,
+      workers: 1,
+      semilla: 42
+    },
+    calidad: {
+      poblacion_size: 100,
+      generaciones: 300,
+      timeout_seg: 300,
+      prob_cruce: 0.9,
+      prob_mutacion: 0.2,
+      elite: 5,
+      paciencia: 30,
+      workers: 2,
+      semilla: 42
+    }
+  };
+  
+  // Valores por defecto originales
+  const valoresDefault = {
+    poblacion_size: 80,
+    generaciones: 500,
+    timeout_seg: 180,
+    prob_cruce: 0.85,
+    prob_mutacion: 0.25,
+    elite: 4,
+    paciencia: 20,
+    workers: 1,
+    semilla: 42
+  };
+  
+  configButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const configType = this.getAttribute('data-config');
+      const config = configuraciones[configType];
+      
+      if (config) {
+        // Aplicar configuración
+        Object.keys(config).forEach(key => {
+          const input = document.querySelector(`input[name="${key}"]`);
+          if (input) {
+            input.value = config[key];
+            // Agregar efecto visual
+            input.classList.add('ring-2', 'ring-green-500');
+            setTimeout(() => {
+              input.classList.remove('ring-2', 'ring-green-500');
+            }, 1000);
+          }
+        });
+        
+        // Mostrar mensaje de confirmación
+        mostrarNotificacion(`✅ Configuración "${configType}" aplicada`, 'success');
+      }
+    });
+  });
+  
+  // Botón para restaurar valores por defecto
+  const btnRestaurar = document.getElementById('restaurar-default');
+  if (btnRestaurar) {
+    btnRestaurar.addEventListener('click', function() {
+      Object.keys(valoresDefault).forEach(key => {
+        const input = document.querySelector(`input[name="${key}"]`);
+        if (input) {
+          input.value = valoresDefault[key];
+          // Agregar efecto visual
+          input.classList.add('ring-2', 'ring-blue-500');
+          setTimeout(() => {
+            input.classList.remove('ring-2', 'ring-blue-500');
+          }, 1000);
+        }
+      });
+      
+      mostrarNotificacion('🔄 Valores por defecto restaurados', 'info');
+    });
+  }
+}
+
+// Función para mostrar notificaciones
+function mostrarNotificacion(mensaje, tipo = 'info') {
+  const notificacion = document.createElement('div');
+  notificacion.className = `fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full`;
+  
+  // Estilos según tipo
+  if (tipo === 'success') {
+    notificacion.className += ' bg-green-500 text-white';
+  } else if (tipo === 'error') {
+    notificacion.className += ' bg-red-500 text-white';
+  } else {
+    notificacion.className += ' bg-blue-500 text-white';
+  }
+  
+  notificacion.textContent = mensaje;
+  document.body.appendChild(notificacion);
+  
+  // Animar entrada
+  setTimeout(() => {
+    notificacion.classList.remove('translate-x-full');
+  }, 100);
+  
+  // Remover después de 3 segundos
+  setTimeout(() => {
+    notificacion.classList.add('translate-x-full');
+    setTimeout(() => {
+      if (notificacion.parentNode) {
+        notificacion.parentNode.removeChild(notificacion);
+      }
+    }, 300);
+  }, 3000);
+}
+
 // Manejo del formulario de generación
 document.addEventListener('DOMContentLoaded', function() {
   const form = document.getElementById('form-generacion');
@@ -77,6 +243,12 @@ document.addEventListener('DOMContentLoaded', function() {
       // El formulario se enviará normalmente
     });
   }
+  
+  // Inicializar tooltips
+  initTooltips();
+  
+  // Inicializar configuración rápida
+  initConfiguracionRapida();
   
   // Cargar estadísticas iniciales
   cargarEstadisticas();

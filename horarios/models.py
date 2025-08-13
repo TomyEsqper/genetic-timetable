@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 import re
+from django.utils import timezone
 
 def validate_nombre_profesor(value):
     """Valida que el nombre del profesor tenga el formato correcto"""
@@ -258,3 +259,159 @@ class Horario(models.Model):
 
     def __str__(self):
         return f"{self.curso} - {self.materia} - {self.dia} Bloque {self.bloque}"
+
+class TrackerCorrida(models.Model):
+    """
+    Modelo para tracking de corridas del algoritmo genético.
+    Permite comparar configuraciones y reproducir resultados.
+    """
+    
+    # Identificación única
+    run_id = models.CharField(max_length=50, unique=True)
+    timestamp_inicio = models.DateTimeField(auto_now_add=True)
+    timestamp_fin = models.DateTimeField(null=True, blank=True)
+    
+    # Configuración del algoritmo
+    semilla = models.IntegerField()
+    poblacion_size = models.IntegerField()
+    generaciones = models.IntegerField()
+    prob_cruce = models.FloatField()
+    prob_mutacion = models.FloatField()
+    elite = models.IntegerField()
+    paciencia = models.IntegerField()
+    workers = models.IntegerField()
+    tournament_size = models.IntegerField()
+    random_immigrants_rate = models.FloatField()
+    
+    # Pesos del fitness
+    peso_huecos = models.FloatField()
+    peso_primeras_ultimas = models.FloatField()
+    peso_balance_dia = models.FloatField()
+    peso_bloques_semana = models.FloatField()
+    
+    # Resultados
+    exito = models.BooleanField(default=False)
+    fitness_final = models.FloatField()
+    generaciones_completadas = models.IntegerField()
+    convergencia = models.BooleanField(default=False)
+    tiempo_total_s = models.FloatField()
+    
+    # KPIs de calidad
+    num_solapes = models.IntegerField(default=0)
+    num_huecos = models.IntegerField(default=0)
+    porcentaje_primeras_ultimas = models.FloatField(default=0.0)
+    desviacion_balance_dia = models.FloatField(default=0.0)
+    
+    # Estado del sistema
+    estado_sistema_hash = models.CharField(max_length=64)  # Hash de los datos de entrada
+    num_cursos = models.IntegerField()
+    num_profesores = models.IntegerField()
+    num_materias = models.IntegerField()
+    
+    # Metadata
+    comentarios = models.TextField(blank=True)
+    tags = models.CharField(max_length=200, blank=True)  # CSV de tags
+    
+    class Meta:
+        ordering = ['-timestamp_inicio']
+        indexes = [
+            models.Index(fields=['exito', 'fitness_final']),
+            models.Index(fields=['semilla', 'timestamp_inicio']),
+            models.Index(fields=['estado_sistema_hash']),
+        ]
+    
+    def __str__(self):
+        return f"Run {self.run_id} - {self.timestamp_inicio.strftime('%Y-%m-%d %H:%M')} - Fitness: {self.fitness_final:.2f}"
+    
+    def calcular_hash_sistema(self):
+        """Calcula hash del estado actual del sistema para reproducibilidad"""
+        import hashlib
+        import json
+        
+        # Obtener estado del sistema
+        estado = {
+            'cursos': list(Curso.objects.values('id', 'nombre', 'grado_id', 'aula_fija_id').order_by('id')),
+            'profesores': list(Profesor.objects.values('id', 'nombre').order_by('id')),
+            'materias': list(Materia.objects.values('id', 'nombre', 'bloques_por_semana').order_by('id')),
+            'materia_grado': list(MateriaGrado.objects.values('materia_id', 'grado_id').order_by('materia_id')),
+            'materia_profesor': list(MateriaProfesor.objects.values('materia_id', 'profesor_id').order_by('materia_id')),
+            'disponibilidad': list(DisponibilidadProfesor.objects.values('profesor_id', 'dia', 'bloque_inicio', 'bloque_fin').order_by('profesor_id')),
+            'bloques': list(BloqueHorario.objects.values('numero', 'tipo').order_by('numero')),
+        }
+        
+        # Convertir a JSON y calcular hash
+        estado_json = json.dumps(estado, sort_keys=True)
+        return hashlib.sha256(estado_json.encode()).hexdigest()
+    
+    def actualizar_estado_sistema(self):
+        """Actualiza el estado del sistema con conteos actuales"""
+        self.num_cursos = Curso.objects.count()
+        self.num_profesores = Profesor.objects.count()
+        self.num_materias = Materia.objects.count()
+        self.estado_sistema_hash = self.calcular_hash_sistema()
+    
+    def es_reproducible(self):
+        """Verifica si la corrida es reproducible con el estado actual"""
+        return self.estado_sistema_hash == self.calcular_hash_sistema()
+    
+    def obtener_configuracion(self):
+        """Retorna la configuración como diccionario para reproducir"""
+        return {
+            'semilla': self.semilla,
+            'poblacion_size': self.poblacion_size,
+            'generaciones': self.generaciones,
+            'prob_cruce': self.prob_cruce,
+            'prob_mutacion': self.prob_mutacion,
+            'elite': self.elite,
+            'paciencia': self.paciencia,
+            'workers': self.workers,
+            'tournament_size': self.tournament_size,
+            'random_immigrants_rate': self.random_immigrants_rate,
+            'peso_huecos': self.peso_huecos,
+            'peso_primeras_ultimas': self.peso_primeras_ultimas,
+            'peso_balance_dia': self.peso_balance_dia,
+            'peso_bloques_semana': self.peso_bloques_semana,
+        }
+    
+    def marcar_como_exitosa(self, resultado):
+        """Marca la corrida como exitosa y guarda resultados"""
+        self.exito = True
+        self.fitness_final = resultado.get('mejor_fitness', 0.0)
+        self.generaciones_completadas = resultado.get('generaciones_completadas', 0)
+        self.convergencia = resultado.get('convergencia', False)
+        self.tiempo_total_s = resultado.get('tiempo_total_s', 0.0)
+        
+        # Extraer KPIs si están disponibles
+        if 'metricas' in resultado:
+            metricas = resultado['metricas']
+            self.num_solapes = metricas.get('num_solapes', 0)
+            self.num_huecos = metricas.get('num_huecos', 0)
+            self.porcentaje_primeras_ultimas = metricas.get('porcentaje_primeras_ultimas', 0.0)
+            self.desviacion_balance_dia = metricas.get('desviacion_balance_dia', 0.0)
+        
+        self.timestamp_fin = timezone.now()
+        self.save()
+    
+    def marcar_como_fallida(self, error, tiempo_total):
+        """Marca la corrida como fallida"""
+        self.exito = False
+        self.tiempo_total_s = tiempo_total
+        self.timestamp_fin = timezone.now()
+        self.comentarios = f"Error: {error}"
+        self.save()
+    
+    @classmethod
+    def obtener_mejores_corridas(cls, limite=10):
+        """Obtiene las mejores corridas exitosas ordenadas por fitness"""
+        return cls.objects.filter(exito=True).order_by('fitness_final')[:limite]
+    
+    @classmethod
+    def obtener_corridas_por_semilla(cls, semilla):
+        """Obtiene todas las corridas con una semilla específica"""
+        return cls.objects.filter(semilla=semilla).order_by('-timestamp_inicio')
+    
+    @classmethod
+    def obtener_corridas_reproducibles(cls):
+        """Obtiene corridas que pueden reproducirse con el estado actual"""
+        corridas = cls.objects.filter(exito=True)
+        return [c for c in corridas if c.es_reproducible()]
