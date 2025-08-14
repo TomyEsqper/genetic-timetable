@@ -1,0 +1,63 @@
+<!-- Indicador de Progreso del Algoritmo Genético -->
+<div id="progreso-algoritmo" class="bg-white rounded-lg shadow-md p-6 mb-6 hidden">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-lg font-semibold text-gray-800">
+      🧬 Generando Horarios con Algoritmo Genético
+    </h3>
+    <div id="estado-algoritmo" class="px-3 py-1 rounded-full text-sm font-medium">
+      <span id="estado-texto">Iniciando...</span>
+    </div>
+  </div>
+  
+  <!-- Barra de progreso -->
+  <div class="mb-4">
+    <div class="flex justify-between text-sm text-gray-600 mb-2">
+      <span>Progreso</span>
+      <span id="progreso-porcentaje">0%</span>
+    </div>
+    <div class="w-full bg-gray-200 rounded-full h-2">
+      <div id="barra-progreso" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+  </div>
+  
+  <!-- Métricas en tiempo real -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+    <div class="text-center">
+      <div class="text-2xl font-bold text-blue-600" id="generacion-actual">0</div>
+      <div class="text-sm text-gray-600">Generación</div>
+    </div>
+    <div class="text-center">
+      <div class="text-2xl font-bold text-green-600" id="fitness-actual">0.0</div>
+      <div class="text-sm text-gray-600">Fitness</div>
+    </div>
+    <div class="text-center">
+      <div class="text-2xl font-bold text-purple-600" id="horarios-parciales">0</div>
+      <div class="text-sm text-gray-600">Horarios</div>
+    </div>
+    <div class="text-center">
+      <div class="text-2xl font-bold text-orange-600" id="ocupacion-actual">0%</div>
+      <div class="text-sm text-gray-600">Ocupación</div>
+    </div>
+  </div>
+  
+  <!-- Información detallada -->
+  <div class="bg-gray-50 rounded-lg p-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+      <div>
+        <span class="font-medium">Tiempo estimado:</span>
+        <span id="tiempo-estimado">Calculando...</span>
+      </div>
+      <div>
+        <span class="font-medium">Estado:</span>
+        <span id="estado-detallado">Inicializando población...</span>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Botón para detener -->
+  <div class="mt-4 text-center">
+          <button id="detener-algoritmo" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+        ■ Detener Generación
+      </button>
+  </div>
+</div> 

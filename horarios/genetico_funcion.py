@@ -2,7 +2,8 @@ from horarios.models import Horario, Profesor, Materia, Curso, Aula, BloqueHorar
 from django.conf import settings
 import os
 import logging
-from .genetico import generar_horarios_genetico_robusto
+# Usar la función que ya persiste resultados en BD
+from .genetico import generar_horarios_genetico as _generar_y_persistir
 from .validadores import prevalidar_factibilidad_dataset
 
 logger = logging.getLogger(__name__)
@@ -83,74 +84,82 @@ def generar_horarios_genetico(
         Diccionario con métricas y resultados
     """
     
-    # Modo rápido para desarrollo
-    if settings.DEBUG or os.environ.get('HORARIOS_FAST') == '1':
-        # Aplicar defaults conservadores solo si no fueron especificados explícitamente
-        if poblacion_size is None:
-            poblacion_size = 40
-        if generaciones is None:
-            generaciones = 120
-        if elite is None:
-            elite = 2
-        if paciencia is None:
-            paciencia = 15
-        if workers is None:
-            workers = 2
-        if timeout_seg is None:
-            timeout_seg = 60
+    try:
+        # Modo rápido para desarrollo
+        if settings.DEBUG or os.environ.get('HORARIOS_FAST') == '1':
+            # Aplicar defaults conservadores solo si no fueron especificados explícitamente
+            if poblacion_size is None:
+                poblacion_size = 30
+            if generaciones is None:
+                generaciones = 80
+            if elite is None:
+                elite = 2
+            if paciencia is None:
+                paciencia = 12
+            if workers is None:
+                workers = 1
+            if timeout_seg is None:
+                timeout_seg = 45
+            
+            logger.info(f"Modo rápido activado: población={poblacion_size}, generaciones={generaciones}, elite={elite}, workers={workers}")
+        else:
+            # Defaults optimizados para producción
+            if poblacion_size is None:
+                poblacion_size = 200  # Aumentado para mejor exploración
+            if generaciones is None:
+                generaciones = 800     # Aumentado para convergencia
+            if elite is None:
+                elite = 10             # 5% de élite
+            if paciencia is None:
+                paciencia = 50         # Más paciencia para evitar convergencia prematura
+            if timeout_seg is None:
+                timeout_seg = 900      # 15 minutos máximo
+            if workers is None:
+                workers = min(4, os.cpu_count())  # Usar hasta 4 cores
         
-        logger.info(f"Modo rápido activado: población={poblacion_size}, generaciones={generaciones}, elite={elite}, workers={workers}")
-    else:
-        # Defaults optimizados para producción
-        if poblacion_size is None:
-            poblacion_size = 200  # Aumentado para mejor exploración
-        if generaciones is None:
-            generaciones = 800     # Aumentado para convergencia
-        if elite is None:
-            elite = 10             # 5% de élite
-        if paciencia is None:
-            paciencia = 50         # Más paciencia para evitar convergencia prematura
-        if timeout_seg is None:
-            timeout_seg = 900      # 15 minutos máximo
-        if workers is None:
-            workers = min(4, os.cpu_count())  # Usar hasta 4 cores
-    
-    # Prevalidación data-driven (oferta vs demanda)
-    pre = prevalidar_factibilidad_dataset()
-    if not pre.get('viable', False):
+        # Prevalidación data-driven (oferta vs demanda)
+        pre = prevalidar_factibilidad_dataset()
+        if not pre.get('viable', False):
+            return {
+                'status': 'error',
+                'mensaje': 'instancia_inviable',
+                'oferta_vs_demanda': pre.get('oferta_vs_demanda', {}),
+            }
+
+        # Ejecutar usando la función que ya persiste en BD
+        resultado = _generar_y_persistir(
+            poblacion_size=poblacion_size,
+            generaciones=generaciones,
+            prob_cruce=prob_cruce,
+            prob_mutacion=prob_mutacion,
+            elite=elite,
+            paciencia=paciencia,
+            timeout_seg=timeout_seg,
+            semilla=semilla,
+            workers=workers
+        )
+        
+        # Verificar que el resultado no sea None
+        if resultado is None:
+            logger.error("La función _generar_y_persistir retornó None")
+            return {
+                'status': 'error',
+                'mensaje': 'Error interno: la generación de horarios falló inesperadamente',
+                'error': 'resultado_none'
+            }
+        
+        # Adjuntar tabla oferta_vs_demanda para trazabilidad
+        if isinstance(resultado, dict):
+            resultado['oferta_vs_demanda'] = prevalidar_factibilidad_dataset()
+        return resultado
+        
+    except Exception as e:
+        logger.error(f"Error inesperado en generar_horarios_genetico: {str(e)}")
+        import traceback
+        logger.error(f"Traceback completo: {traceback.format_exc()}")
         return {
             'status': 'error',
-            'mensaje': 'instancia_inviable',
-            'oferta_vs_demanda': pre.get('oferta_vs_demanda', {}),
+            'mensaje': f'Error interno: {str(e)}',
+            'error': 'excepcion_inesperada',
+            'traceback': traceback.format_exc()
         }
-
-    # Configurar semilla global para reproducibilidad opcional
-    import random
-    import numpy as np
-    random.seed(semilla)
-    np.random.seed(semilla)
-    
-    # Intentar configurar semilla para otras librerías
-    try:
-        import os
-        os.environ['PYTHONHASHSEED'] = str(semilla)
-    except:
-        pass
-    
-    logger.info(f"Configuración optimizada: población={poblacion_size}, generaciones={generaciones}, elite={elite}, workers={workers}")
-    
-    resultado = generar_horarios_genetico_robusto(
-        poblacion_size=poblacion_size,
-        generaciones=generaciones,
-        prob_cruce=prob_cruce,
-        prob_mutacion=prob_mutacion,
-        elite=elite,
-        paciencia=paciencia,
-        timeout_seg=timeout_seg,
-        semilla=semilla,
-        workers=workers
-    )
-    # Adjuntar tabla oferta_vs_demanda para trazabilidad
-    if isinstance(resultado, dict):
-        resultado['oferta_vs_demanda'] = prevalidar_factibilidad_dataset()
-    return resultado

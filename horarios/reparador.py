@@ -15,6 +15,7 @@ from horarios.models import (
     Horario, Curso, Materia, Profesor, DisponibilidadProfesor,
     BloqueHorario, MateriaGrado, MateriaProfesor
 )
+from horarios.reparador.mascaras import precomputar_mascaras
 
 logger = logging.getLogger(__name__)
 
@@ -363,6 +364,52 @@ class ReparadorCromosomas:
                 return (curso_id, dia, bloque)
         
         return None
+
+def recolocar_con_filtro_duro(cromosoma, datos) -> None:
+	"""Intenta recolocar asignaciones inválidas usando máscaras para filtrar dominio."""
+	try:
+		mascaras = precomputar_mascaras()
+	except Exception as e:
+		logger.warning(f"No se pudieron precomputar máscaras en reparador: {e}")
+		return
+	# Implementación básica: para cada gen, si (profesor,materia) o slot inválido, buscar alternativa válida
+	nuevos_genes = {}
+	for (curso_id, dia, bloque), (materia_id, profesor_id) in list(cromosoma.genes.items()):
+		valido = True
+		if curso_id not in mascaras.curso_to_idx or materia_id not in mascaras.materia_to_idx or profesor_id not in mascaras.profesor_to_idx:
+			valido = False
+		else:
+			pidx = mascaras.profesor_to_idx[profesor_id]
+			midx = mascaras.materia_to_idx[materia_id]
+			ok_pm = mascaras.profesor_materia[pidx, midx]
+			sidx = mascaras.slot_to_idx.get((dia, bloque))
+			ok_slot = (sidx is not None and mascaras.mask_profesor_disponible_flat[pidx, sidx])
+			if not ok_pm or not ok_slot:
+				valido = False
+		if valido:
+			nuevos_genes[(curso_id, dia, bloque)] = (materia_id, profesor_id)
+			continue
+		# Buscar alternativa: mantener materia, cambiar profesor/slot válidos
+		midx = mascaras.materia_to_idx.get(materia_id)
+		if midx is None:
+			continue
+		for pid, pidx in mascaras.profesor_to_idx.items():
+			if not mascaras.profesor_materia[pidx, midx]:
+				continue
+			for (d, b), sidx in mascaras.slot_to_idx.items():
+				if not mascaras.mask_profesor_disponible_flat[pidx, sidx]:
+					continue
+				# Evitar solapes con curso/profesor existentes
+				if any((c==curso_id and dd==d and bb==b) for (c, dd, bb) in nuevos_genes.keys()):
+					continue
+				if any((p==pid and dd==d and bb==b) for (_, dd, bb), (_, p) in nuevos_genes.items()):
+					continue
+				nuevos_genes[(curso_id, d, b)] = (materia_id, pid)
+				break
+			else:
+				continue
+			break
+	cromosoma.genes = nuevos_genes
 
 def reparar_cromosoma(cromosoma, datos) -> Tuple[bool, List[Reparacion]]:
     """

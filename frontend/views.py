@@ -9,7 +9,9 @@ from xhtml2pdf import pisa
 from django.http import HttpResponse
 from horarios.models import Curso, Profesor, Aula, Horario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, BloqueHorario
 from horarios.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
-from horarios.genetico_funcion import generar_horarios_genetico
+from horarios.genetico import generar_horarios_genetico
+from horarios.validadores import prevalidar_factibilidad_dataset
+from glob import glob
 
 def get_dias_clase():
     """
@@ -131,14 +133,21 @@ def descargar_excel_por_profesor(request):
 def generar_horario(request):
     if request.method == 'POST':
         try:
-            # Obtener parámetros del formulario
-            poblacion_size = int(request.POST.get('poblacion_size', 80))
-            generaciones = int(request.POST.get('generaciones', 500))
-            prob_cruce = float(request.POST.get('prob_cruce', 0.85))
-            prob_mutacion = float(request.POST.get('prob_mutacion', 0.25))
-            elite = int(request.POST.get('elite', 4))
-            paciencia = int(request.POST.get('paciencia', 25))
-            timeout_seg = int(request.POST.get('timeout_seg', 180))
+            # Obtener parámetros del formulario (sin valores predeterminados)
+            poblacion_size = int(request.POST.get('poblacion_size'))
+            generaciones = int(request.POST.get('generaciones'))
+            prob_cruce = float(request.POST.get('prob_cruce'))
+            prob_mutacion = float(request.POST.get('prob_mutacion'))
+            elite = int(request.POST.get('elite'))
+            paciencia = int(request.POST.get('paciencia'))
+            timeout_seg = int(request.POST.get('timeout_seg'))
+            workers = int(request.POST.get('workers'))
+            semilla = int(request.POST.get('semilla'))
+            
+            # Validar que todos los parámetros estén presentes
+            if not all([poblacion_size, generaciones, prob_cruce, prob_mutacion, elite, paciencia, timeout_seg, workers, semilla]):
+                messages.error(request, "❌ Todos los parámetros son obligatorios")
+                return redirect('dashboard')
             
             # Ejecutar algoritmo genético robusto
             resultado = generar_horarios_genetico(
@@ -148,18 +157,36 @@ def generar_horario(request):
                 prob_mutacion=prob_mutacion,
                 elite=elite,
                 paciencia=paciencia,
-                timeout_seg=timeout_seg
+                timeout_seg=timeout_seg,
+                workers=workers,
+                semilla=semilla
             )
             
+            # Verificar que el resultado no sea None
+            if resultado is None:
+                messages.error(request, "❌ Error al generar horarios: La función retornó None inesperadamente")
+                return redirect('dashboard')
+            
             if resultado.get('status') == 'error':
-                messages.error(request, f"❌ Error al generar horarios: {resultado.get('mensaje')}")
+                mensaje_error = resultado.get('mensaje', 'Error desconocido')
+                messages.error(request, f"❌ Error al generar horarios: {mensaje_error}")
                 if resultado.get('errores'):
                     for error in resultado['errores']:
                         messages.error(request, f"  - {error}")
+                if resultado.get('error') == 'resultado_none':
+                    messages.error(request, "  - Error interno: La generación de horarios falló inesperadamente")
+                elif resultado.get('error') == 'excepcion_inesperada':
+                    messages.error(request, "  - Error interno: Ocurrió una excepción inesperada")
+                    if resultado.get('traceback'):
+                        messages.error(request, f"  - Detalles técnicos: {resultado['traceback'][:200]}...")
             else:
-                metricas = resultado.get('metricas', {})
-                messages.success(request, f"✅ Horarios generados exitosamente en {metricas.get('tiempo_total_segundos', 0):.2f} segundos")
-                messages.info(request, f"📊 Generaciones: {metricas.get('generaciones_completadas', 0)}, Fitness: {metricas.get('mejor_fitness_final', 0):.2f}")
+                # El algoritmo genético retorna directamente las métricas, no en un subdiccionario 'metricas'
+                tiempo_total = resultado.get('tiempo_total_segundos', 0)
+                generaciones_completadas = resultado.get('generaciones_completadas', 0)
+                mejor_fitness = resultado.get('mejor_fitness', 0)
+                
+                messages.success(request, f"✅ Horarios generados exitosamente en {tiempo_total:.2f} segundos")
+                messages.info(request, f"📊 Generaciones: {generaciones_completadas}, Fitness: {mejor_fitness:.2f}")
                 
                 # Mostrar información de validación
                 validacion = resultado.get('validacion_final', {})
@@ -168,6 +195,8 @@ def generar_horario(request):
                 
         except Exception as e:
             messages.error(request, f"❌ Error interno al generar horarios: {str(e)}")
+            import traceback
+            messages.error(request, f"  - Traceback: {traceback.format_exc()[:200]}...")
         
         return redirect('dashboard')
     else:
@@ -192,8 +221,25 @@ def dashboard(request):
     cursos = Curso.objects.select_related('grado', 'aula_fija').all()
     
     for curso in cursos:
-        horarios = Horario.objects.filter(curso=curso).select_related('materia', 'profesor', 'aula')
+        horarios = Horario.objects.filter(curso=curso).select_related('materia', 'profesor', 'aula').order_by('dia', 'bloque')
         horarios_por_curso[curso] = horarios
+
+    # Obtener estadísticas adicionales de los horarios
+    estadisticas_horarios = {}
+    if total_horarios > 0:
+        # Contar materias únicas
+        materias_unicas = Horario.objects.values('materia__nombre').distinct().count()
+        # Contar profesores únicos
+        profesores_unicos = Horario.objects.values('profesor__nombre').distinct().count()
+        # Contar aulas únicas
+        aulas_unicas = Horario.objects.values('aula__nombre').distinct().count()
+        
+        estadisticas_horarios = {
+            'materias_unicas': materias_unicas,
+            'profesores_unicos': profesores_unicos,
+            'aulas_unicas': aulas_unicas,
+            'promedio_materias_por_curso': total_horarios / total_cursos if total_cursos > 0 else 0,
+        }
 
     return render(request, 'frontend/dashboard.html', {
         'total_cursos': total_cursos,
@@ -203,6 +249,7 @@ def dashboard(request):
         'dias': DIAS,
         'bloques_disponibles': bloques_disponibles,
         'horarios_por_curso': horarios_por_curso,
+        'estadisticas_horarios': estadisticas_horarios,
     })
 
 def pdf_curso(request, curso_id):
@@ -341,3 +388,105 @@ def estadisticas_ajax(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@require_http_methods(["GET"])
+def progreso_ajax(request):
+	"""Devuelve progreso en tiempo real de la última ejecución del GA.
+	Lee el progreso desde la base de datos y logs del sistema.
+	"""
+	try:
+		from horarios.models import Horario
+		from django.core.cache import cache
+		
+		# Obtener información de horarios parciales
+		horarios_parciales = Horario.objects.count()
+		
+		# Obtener progreso desde cache o calcular desde horarios
+		cache_key = 'ga_progreso_actual'
+		progreso = cache.get(cache_key)
+		
+		if not progreso:
+			# Si no hay progreso en cache, verificar si hay horarios
+			if horarios_parciales > 0:
+				# Si hay horarios pero no hay progreso en cache, asumir que terminó
+				progreso = {
+					'estado': 'finalizado',
+					'generacion': 1,
+					'mejor_fitness': 0.0,
+					'fitness_promedio': 0.0,
+					'fill_pct': 100.0,
+					'horarios_parciales': horarios_parciales,
+					'objetivo': 1,
+					'tiempo_estimado': 'Completado',
+					'mensaje': 'Horarios generados exitosamente'
+				}
+			else:
+				# Si no hay horarios ni progreso, crear uno básico
+				progreso = {
+					'estado': 'sin_datos',
+					'generacion': 0,
+					'mejor_fitness': 0.0,
+					'fitness_promedio': 0.0,
+					'fill_pct': 0.0,
+					'horarios_parciales': 0,
+					'objetivo': 100,
+					'tiempo_estimado': 'Sin datos',
+					'mensaje': 'No hay proceso de generación activo'
+				}
+		else:
+			# Actualizar con datos reales de horarios
+			progreso['horarios_parciales'] = horarios_parciales
+			
+			# Si el estado es 'en_progreso' pero hay horarios y la generación alcanzó el objetivo
+			if (progreso['estado'] == 'en_progreso' and 
+				horarios_parciales > 0 and 
+				progreso.get('generacion', 0) >= progreso.get('objetivo', 1)):
+				# Marcar como finalizado
+				progreso['estado'] = 'finalizado'
+				progreso['mensaje'] = 'Horarios generados exitosamente'
+				# Actualizar cache
+				cache.set(cache_key, progreso, timeout=300)
+			
+			# Si hay horarios pero el estado no es finalizado, verificar si debería serlo
+			elif (progreso['estado'] == 'en_progreso' and 
+				  horarios_parciales > 0 and 
+				  progreso.get('generacion', 0) > 0):
+				# Verificar si ha pasado mucho tiempo desde la última actualización
+				# Si no hay actualizaciones recientes, asumir que terminó
+				progreso['estado'] = 'finalizado'
+				progreso['mensaje'] = 'Horarios generados exitosamente'
+				# Actualizar cache
+				cache.set(cache_key, progreso, timeout=300)
+		
+		return JsonResponse(progreso)
+		
+	except Exception as e:
+		return JsonResponse({
+			'estado': 'error',
+			'mensaje': f'Error: {str(e)}',
+			'generacion': 0,
+			'mejor_fitness': 0.0,
+			'fitness_promedio': 0.0,
+			'fill_pct': 0.0,
+			'horarios_parciales': 0
+		})
+
+@require_http_methods(["GET"])
+def limpiar_cache_progreso(request):
+    """Limpia el cache de progreso cuando el proceso ha terminado"""
+    try:
+        from django.core.cache import cache
+        
+        # Limpiar cache de progreso
+        cache.delete('ga_progreso_actual')
+        
+        return JsonResponse({
+            'estado': 'exito',
+            'mensaje': 'Cache de progreso limpiado'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'estado': 'error',
+            'mensaje': f'Error: {str(e)}'
+        }, status=500)

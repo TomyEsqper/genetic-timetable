@@ -90,6 +90,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'colegio.wsgi.application'
 
 
+# Cache configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'cache_table',
+    }
+}
+
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 

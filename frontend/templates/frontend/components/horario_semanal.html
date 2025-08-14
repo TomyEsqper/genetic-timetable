@@ -1,6 +1,19 @@
 {% if horarios_por_curso %}
 <div class="bg-white rounded shadow p-6 mb-6">
-  <h2 class="text-2xl font-bold text-blue-900 mb-6">📅 Horario Semanal</h2>
+  <h2 class="text-2xl font-bold text-blue-900 mb-6">📅 Horario Semanal Generado</h2>
+  
+  <!-- Resumen general -->
+  <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="text-blue-600 text-lg">ℹ️</span>
+      <h3 class="text-lg font-semibold text-blue-800">Resumen de Horarios</h3>
+    </div>
+    <p class="text-blue-700 text-sm">
+      Se han generado horarios para <strong>{{ horarios_por_curso|length }} cursos</strong> 
+      con un total de <strong>{{ total_horarios }} asignaciones</strong> distribuidas en 
+      <strong>{{ bloques_disponibles|length }} bloques</strong> por día.
+    </p>
+  </div>
   
   <!-- Filtros -->
   <div class="mb-4 flex flex-wrap gap-2">
@@ -18,8 +31,17 @@
   
   {% for curso, horarios in horarios_por_curso.items %}
   <div class="mb-8 horario-curso" data-curso-id="{{ curso.id }}">
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-xl font-semibold text-gray-800">{{ curso.nombre }}</h3>
+    <div class="flex justify-between items-center mb-4 p-3 bg-gray-50 rounded-lg">
+      <div>
+        <h3 class="text-xl font-semibold text-gray-800">{{ curso.nombre }} - {{ curso.grado.nombre }}</h3>
+        <p class="text-sm text-gray-600">
+          {% if curso.aula_fija %}
+            Aula fija: {{ curso.aula_fija.nombre }}
+          {% else %}
+            Aula variable
+          {% endif %}
+        </p>
+      </div>
       <div class="flex gap-2">
         <a href="{% url 'horario_curso' curso.id %}" 
            class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm">
@@ -52,7 +74,7 @@
             <td class="border border-gray-300 p-2 text-center min-h-[60px] hover:bg-gray-50 transition-colors">
               {% for horario in horarios %}
                 {% if horario.dia == dia and horario.bloque == bloque %}
-                <div class="text-sm p-1 rounded" 
+                <div class="text-sm p-1 rounded shadow-sm" 
                      style="background-color: {% cycle '#e3f2fd' '#f3e5f5' '#e8f5e8' '#fff3e0' '#fce4ec' as colors %}">
                   <div class="font-semibold text-blue-700">{{ horario.materia.nombre }}</div>
                   <div class="text-gray-600 text-xs">{{ horario.profesor.nombre }}</div>
@@ -69,6 +91,28 @@
         </tbody>
       </table>
     </div>
+    
+    <!-- Resumen del curso -->
+    <div class="mt-4 p-3 bg-gray-50 rounded text-sm">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <span class="font-semibold text-gray-700">Total materias:</span>
+          <span class="text-gray-600">{{ horarios|length }}</span>
+        </div>
+        <div>
+          <span class="font-semibold text-gray-700">Materias únicas:</span>
+          <span class="text-gray-600">{{ horarios|dictsort:"materia.nombre"|length }}</span>
+        </div>
+        <div>
+          <span class="font-semibold text-gray-700">Profesores:</span>
+          <span class="text-gray-600">{{ horarios|dictsort:"profesor.nombre"|length }}</span>
+        </div>
+        <div>
+          <span class="font-semibold text-gray-700">Aulas:</span>
+          <span class="text-gray-600">{{ horarios|dictsort:"aula.nombre"|length }}</span>
+        </div>
+      </div>
+    </div>
   </div>
   {% endfor %}
 </div>
@@ -77,5 +121,40 @@
   <h2 class="text-2xl font-bold text-gray-600 mb-4">📅 Horario Semanal</h2>
   <p class="text-gray-500 mb-4">No hay horarios generados. Use el formulario arriba para generar horarios.</p>
   <div class="text-6xl text-gray-300 mb-4">📋</div>
+  
+  <!-- Información sobre el estado actual -->
+  <div class="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="text-yellow-600 text-lg">⚠️</span>
+      <h3 class="text-lg font-semibold text-yellow-800">Estado del Sistema</h3>
+    </div>
+    <div class="text-yellow-700 text-sm text-left">
+      <p class="mb-2"><strong>Para generar horarios necesitas:</strong></p>
+      <ul class="list-disc list-inside space-y-1">
+        <li>✅ Cursos configurados ({{ total_cursos }} disponibles)</li>
+        <li>✅ Profesores configurados ({{ total_profesores }} disponibles)</li>
+        <li>✅ Materias asignadas a grados</li>
+        <li>✅ Profesores asignados a materias</li>
+        <li>✅ Disponibilidad de profesores configurada</li>
+        <li>✅ Bloques horarios definidos ({{ bloques_disponibles|length }} disponibles)</li>
+      </ul>
+    </div>
+  </div>
+  
+  <!-- Instrucciones para generar horarios -->
+  <div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="text-blue-600 text-lg">📝</span>
+      <h3 class="text-lg font-semibold text-blue-800">Cómo Generar Horarios</h3>
+    </div>
+    <p class="text-blue-700 text-sm text-left">
+      <strong>Pasos a seguir:</strong><br>
+      1. Complete el formulario de generación arriba<br>
+      2. Configure los parámetros del algoritmo genético<br>
+      3. Haga clic en "Generar Horarios"<br>
+      4. Espere a que se complete la generación<br>
+      5. Los horarios aparecerán automáticamente aquí
+    </p>
+  </div>
 </div>
 {% endif %} 

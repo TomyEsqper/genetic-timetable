@@ -51,9 +51,14 @@ function cargarEstadisticas() {
       // Actualizar profesores sin disponibilidad
       const container = document.getElementById('profesores-sin-disponibilidad');
       if (data.profesores_sin_disponibilidad > 0) {
-        container.innerHTML = `<li class="text-orange-600">⚠️ ${data.profesores_sin_disponibilidad} profesores sin disponibilidad</li>`;
+        container.innerHTML = `<li class="text-orange-600">⚠ ${data.profesores_sin_disponibilidad} profesores sin disponibilidad</li>`;
       } else {
-        container.innerHTML = '<li class="text-green-600">✅ Todos los profesores tienen disponibilidad registrada</li>';
+        container.innerHTML = '<li class="text-green-600">✓ Todos los profesores tienen disponibilidad registrada</li>';
+      }
+      
+      // Si hay horarios, ocultar el indicador de progreso
+      if (data.total_horarios > 0) {
+        document.getElementById('progreso-algoritmo').classList.add('hidden');
       }
     })
     .catch(error => {
@@ -95,43 +100,191 @@ function initTooltips() {
   });
 }
 
+// Monitorear progreso del algoritmo genético
+let monitoreoProgreso = null;
+
+function iniciarMonitoreoProgreso() {
+  if (monitoreoProgreso) return;
+  
+  // Mostrar indicador de progreso
+  document.getElementById('progreso-algoritmo').classList.remove('hidden');
+  
+  // Actualizar cada 2 segundos
+  monitoreoProgreso = setInterval(() => {
+    fetch('/progreso-ajax/')
+      .then(response => response.json())
+      .then(data => {
+        if (data.estado === 'finalizado') {
+          // Algoritmo terminó - DETENER POLLING
+          clearInterval(monitoreoProgreso);
+          monitoreoProgreso = null;
+          
+          // Limpiar cache de progreso
+          fetch('/limpiar-cache-progreso/')
+            .then(response => response.json())
+            .then(data => {
+              console.log('Cache de progreso limpiado:', data.mensaje);
+            })
+            .catch(error => {
+              console.log('Error limpiando cache:', error);
+            });
+          
+          // Ocultar indicador de progreso
+          document.getElementById('progreso-algoritmo').classList.add('hidden');
+          
+          // Actualizar botón de generación
+          const btnGenerar = document.getElementById('btn-generar');
+          if (btnGenerar) {
+            btnGenerar.disabled = false;
+            btnGenerar.textContent = 'Generar Horarios';
+            btnGenerar.className = 'w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors';
+          }
+          
+          // Ocultar indicador de carga
+          const loadingIndicator = document.getElementById('loading-indicator');
+          if (loadingIndicator) {
+            loadingIndicator.classList.add('hidden');
+          }
+          
+          // Recargar estadísticas para mostrar horarios
+          cargarEstadisticas();
+          
+          // Mostrar mensaje de éxito
+          mostrarMensaje('✅ Horarios generados exitosamente!', 'success');
+          
+          // Recargar página después de 2 segundos para mostrar horarios
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+          
+        } else if (data.estado === 'en_progreso') {
+          // Actualizar indicadores de progreso
+          const generacion = data.generacion || 0;
+          const objetivo = data.objetivo || 100;
+          const progreso = Math.min((generacion / objetivo) * 100, 100);
+          
+          document.getElementById('generacion-actual').textContent = generacion;
+          document.getElementById('fitness-actual').textContent = (data.mejor_fitness || 0).toFixed(1);
+          document.getElementById('horarios-parciales').textContent = data.horarios_parciales || 0;
+          document.getElementById('ocupacion-actual').textContent = (data.fill_pct || 0).toFixed(1) + '%';
+          document.getElementById('progreso-porcentaje').textContent = Math.round(progreso) + '%';
+          document.getElementById('barra-progreso').style.width = progreso + '%';
+          
+          // Actualizar estado
+          document.getElementById('estado-texto').textContent = `Generación ${generacion}/${objetivo}`;
+          document.getElementById('estado-detallado').textContent = data.mensaje || `Fitness: ${(data.mejor_fitness || 0).toFixed(1)}`;
+          
+          // Calcular tiempo estimado
+          if (generacion > 0) {
+            const tiempoPorGen = 2; // segundos estimados por generación
+            const generacionesRestantes = objetivo - generacion;
+            const tiempoEstimado = Math.round(generacionesRestantes * tiempoPorGen / 60);
+            document.getElementById('tiempo-estimado').textContent = `${tiempoEstimado} min`;
+          }
+        } else if (data.estado === 'sin_datos' || data.estado === 'error') {
+          // No hay proceso activo - DETENER POLLING
+          clearInterval(monitoreoProgreso);
+          monitoreoProgreso = null;
+          
+          // Ocultar indicador de progreso
+          document.getElementById('progreso-algoritmo').classList.add('hidden');
+          
+          // Restaurar botón de generación
+          const btnGenerar = document.getElementById('btn-generar');
+          if (btnGenerar) {
+            btnGenerar.disabled = false;
+            btnGenerar.textContent = 'Generar Horarios';
+            btnGenerar.className = 'w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors';
+          }
+          
+          // Ocultar indicador de carga
+          const loadingIndicator = document.getElementById('loading-indicator');
+          if (loadingIndicator) {
+            loadingIndicator.classList.add('hidden');
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Error monitoreando progreso:', error);
+        
+        // En caso de error, detener polling después de varios intentos fallidos
+        if (monitoreoProgreso) {
+          clearInterval(monitoreoProgreso);
+          monitoreoProgreso = null;
+          
+          // Ocultar indicador de progreso
+          document.getElementById('progreso-algoritmo').classList.add('hidden');
+          
+          // Restaurar botón de generación
+          const btnGenerar = document.getElementById('btn-generar');
+          if (btnGenerar) {
+            btnGenerar.disabled = false;
+            btnGenerar.textContent = 'Generar Horarios';
+            btnGenerar.className = 'w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors';
+          }
+          
+          // Ocultar indicador de carga
+          const loadingIndicator = document.getElementById('loading-indicator');
+          if (loadingIndicator) {
+            loadingIndicator.classList.add('hidden');
+          }
+        }
+      });
+  }, 2000);
+}
+
+function mostrarMensaje(mensaje, tipo) {
+  // Crear mensaje temporal
+  const div = document.createElement('div');
+  div.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+    tipo === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+  }`;
+  div.textContent = mensaje;
+  document.body.appendChild(div);
+  
+  // Remover después de 3 segundos
+  setTimeout(() => {
+    div.remove();
+  }, 3000);
+}
+
 // Sistema de configuración rápida de parámetros
 function initConfiguracionRapida() {
   const configButtons = document.querySelectorAll('.config-rapida-btn');
   
   const configuraciones = {
     estable: {
-      poblacion_size: 30,
+      poblacion_size: 40,
       generaciones: 80,
-      timeout_seg: 120,
+      timeout_seg: 90,
       prob_cruce: 0.8,
-      prob_mutacion: 0.12,
+      prob_mutacion: 0.15,
       elite: 3,
-      paciencia: 20,
+      paciencia: 15,
       workers: 1,
       semilla: 42
     },
     rapida: {
-      poblacion_size: 20,
-      generaciones: 40,
-      timeout_seg: 60,
-      prob_cruce: 0.7,
-      prob_mutacion: 0.1,
+      poblacion_size: 25,
+      generaciones: 60,
+      timeout_seg: 45,
+      prob_cruce: 0.75,
+      prob_mutacion: 0.2,
       elite: 2,
-      paciencia: 10,
+      paciencia: 8,
       workers: 1,
       semilla: 42
     },
     calidad: {
-      poblacion_size: 100,
-      generaciones: 300,
-      timeout_seg: 300,
+      poblacion_size: 80,
+      generaciones: 1000,
+      timeout_seg: 600,
       prob_cruce: 0.9,
-      prob_mutacion: 0.2,
+      prob_mutacion: 0.05,
       elite: 5,
-      paciencia: 30,
-      workers: 2,
-      semilla: 42
+      paciencia: 50,
+      workers: 1,
+      semilla: Math.floor(Math.random() * 999999) + 1, // Semilla aleatoria para diversidad
     }
   };
   
@@ -158,7 +311,12 @@ function initConfiguracionRapida() {
         Object.keys(config).forEach(key => {
           const input = document.querySelector(`input[name="${key}"]`);
           if (input) {
-            input.value = config[key];
+            // Para la configuración de calidad, generar nueva semilla aleatoria
+            if (configType === 'calidad' && key === 'semilla') {
+              input.value = Math.floor(Math.random() * 999999) + 1;
+            } else {
+              input.value = config[key];
+            }
             // Agregar efecto visual
             input.classList.add('ring-2', 'ring-green-500');
             setTimeout(() => {
@@ -240,6 +398,11 @@ document.addEventListener('DOMContentLoaded', function() {
       btnGenerar.textContent = 'Generando...';
       loadingIndicator.classList.remove('hidden');
       
+      // Iniciar monitoreo de progreso después de un segundo
+      setTimeout(() => {
+        iniciarMonitoreoProgreso();
+      }, 1000);
+      
       // El formulario se enviará normalmente
     });
   }
@@ -256,7 +419,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Actualizar estadísticas cada 30 segundos
   setInterval(cargarEstadisticas, 30000);
 });
-
 // Funcionalidad para cargar horarios dinámicamente
 function cargarHorarioAjax(tipo, id) {
   const container = document.getElementById('horario-container');
@@ -318,8 +480,28 @@ function renderizarHorario(data, container) {
   container.innerHTML = html;
 }
 
-// Mejoras de accesibilidad
+// Configurar botón de detener algoritmo
 document.addEventListener('DOMContentLoaded', function() {
+  const btnDetener = document.getElementById('detener-algoritmo');
+  if (btnDetener) {
+    btnDetener.addEventListener('click', function() {
+      if (confirm('¿Estás seguro de que quieres detener la generación de horarios?')) {
+        // Detener monitoreo
+        if (monitoreoProgreso) {
+          clearInterval(monitoreoProgreso);
+          monitoreoProgreso = null;
+        }
+        
+        // Ocultar indicador de progreso
+        document.getElementById('progreso-algoritmo').classList.add('hidden');
+        
+        // Mostrar mensaje
+        mostrarMensaje('■ Generación detenida por el usuario', 'error');
+      }
+    });
+  }
+  
+  // Mejoras de accesibilidad
   // Agregar navegación por teclado
   const botones = document.querySelectorAll('button, a');
   botones.forEach(boton => {
@@ -345,4 +527,109 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 });
+
+function initProgresoGA() {
+  const overlayId = 'overlay-progreso-ga';
+  let overlay = document.getElementById(overlayId);
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = overlayId;
+    overlay.style.position = 'fixed';
+    overlay.style.bottom = '16px';
+    overlay.style.right = '16px';
+    overlay.style.background = 'rgba(17,24,39,0.95)';
+    overlay.style.color = '#fff';
+    overlay.style.padding = '12px 16px';
+    overlay.style.borderRadius = '8px';
+    overlay.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1)';
+    overlay.style.zIndex = '9999';
+    overlay.style.minWidth = '260px';
+    overlay.innerHTML = `
+      <div style="font-weight:600; margin-bottom:6px;">Generación: <span id="ga-gen">-</span>/<span id="ga-obj">-</span></div>
+      <div style="height:8px; background:#374151; border-radius:6px; overflow:hidden; margin-bottom:8px;">
+        <div id="ga-bar" style="height:8px; width:0%; background:#10B981;"></div>
+      </div>
+      <div style="font-size:12px; opacity:.9;">
+        <div>Fitness: <span id="ga-best">-</span> (avg <span id="ga-avg">-</span>)</div>
+        <div>Ocupación: <span id="ga-fill">-</span>%</div>
+        <div>Reparados acum: <span id="ga-rep">0</span> · Descartados acum: <span id="ga-des">0</span></div>
+        <div>Evaluados acum: <span id="ga-ev">0</span> · Válidos acum (horarios): <span id="ga-val">0</span></div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+  function updateOverlay(d) {
+    const gen = d.generacion ?? 0;
+    const obj = d.objetivo ?? 0;
+    document.getElementById('ga-gen').textContent = gen;
+    document.getElementById('ga-obj').textContent = obj || '-';
+    document.getElementById('ga-best').textContent = d.mejor_fitness?.toFixed ? d.mejor_fitness.toFixed(2) : d.mejor_fitness;
+    document.getElementById('ga-avg').textContent = d.fitness_promedio?.toFixed ? d.fitness_promedio.toFixed(2) : d.fitness_promedio;
+    document.getElementById('ga-fill').textContent = d.ocupacion_pct?.toFixed ? d.ocupacion_pct.toFixed(1) : d.ocupacion_pct;
+    const pct = (obj && obj > 0) ? Math.max(0, Math.min(100, (gen / obj) * 100)) : 0;
+    document.getElementById('ga-bar').style.width = pct + '%';
+    if (typeof d.reparados_acum !== 'undefined') document.getElementById('ga-rep').textContent = d.reparados_acum;
+    if (typeof d.descartados_acum !== 'undefined') document.getElementById('ga-des').textContent = d.descartados_acum;
+    if (typeof d.evaluados_acum !== 'undefined') document.getElementById('ga-ev').textContent = d.evaluados_acum;
+    if (typeof d.validos_acum !== 'undefined') document.getElementById('ga-val').textContent = d.validos_acum;
+  }
+  async function poll() {
+    try {
+      const res = await fetch('/progreso-ajax/');
+      const data = await res.json();
+      if (data.estado === 'en_progreso') {
+        updateOverlay(data);
+      } else if (data.estado === 'finalizado') {
+        updateOverlay(data);
+        const bar = document.getElementById('ga-bar');
+        if (bar) bar.style.background = '#10B981'; // Verde para completado
+        const gen = document.getElementById('ga-gen');
+        if (gen) gen.textContent = data.generacion;
+        
+        // Limpiar cache de progreso
+        fetch('/limpiar-cache-progreso/')
+          .then(response => response.json())
+          .then(data => {
+            console.log('Cache de progreso limpiado:', data.mensaje);
+          })
+          .catch(error => {
+            console.log('Error limpiando cache:', error);
+          });
+        
+        // DETENER POLLING cuando termine
+        if (window.__gaPoller) {
+          clearInterval(window.__gaPoller);
+          window.__gaPoller = null;
+        }
+        
+        // Ocultar overlay después de 3 segundos
+        setTimeout(() => {
+          const overlay = document.getElementById(overlayId);
+          if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 300);
+          }
+        }, 3000);
+        
+      } else if (data.estado === 'sin_datos' || data.estado === 'error') {
+        // DETENER POLLING si no hay ejecuciones
+        if (window.__gaPoller) {
+          clearInterval(window.__gaPoller);
+          window.__gaPoller = null;
+        }
+        
+        // Ocultar overlay
+        document.getElementById(overlayId)?.remove();
+      }
+    } catch (e) {
+      // Silencioso
+    }
+  }
+  // Polling cada 2s
+  poll();
+  window.__gaPoller = setInterval(poll, 2000);
+}
+// Auto iniciar en dashboard
+if (window.location.pathname === '/dashboard/') {
+  document.addEventListener('DOMContentLoaded', initProgresoGA);
+}
 </script>

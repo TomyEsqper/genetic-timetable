@@ -28,6 +28,10 @@ class MetricasGeneracion:
     intentos_invalidos: int
     repairs_exitosos: int
     diversidad_poblacional: float
+    fill_pct: float = 0.0
+    # Nuevos campos
+    evaluados: int = 0
+    validos: int = 0
 
 @dataclass
 class MetricasEjecucion:
@@ -164,7 +168,10 @@ class LoggerGenetico:
         tiempo_generacion_s: float,
         intentos_invalidos: int = 0,
         repairs_exitosos: int = 0,
-        diversidad_poblacional: float = 0.0
+        diversidad_poblacional: float = 0.0,
+        fill_pct: float = 0.0,
+        evaluados: int = 0,
+        validos: int = 0
     ):
         """Registra métricas de una generación específica (alias para compatibilidad)."""
         if not poblacion_fitness:
@@ -188,9 +195,12 @@ class LoggerGenetico:
             fitness_mediana=fitness_mediana,
             fitness_p95=fitness_p95,
             tiempo_generacion_s=tiempo_generacion_s,
-            intentos_invalidos=intentos_invalidos,
-            repairs_exitosos=repairs_exitosos,
-            diversidad_poblacional=diversidad_poblacional
+            intentos_invalidos=int(intentos_invalidos),
+            repairs_exitosos=int(repairs_exitosos),
+            diversidad_poblacional=diversidad_poblacional,
+            fill_pct=float(fill_pct),
+            evaluados=int(evaluados),
+            validos=int(validos)
         )
         
         self.metricas_generaciones.append(metricas_gen)
@@ -230,6 +240,14 @@ class LoggerGenetico:
         # Permitir estructura 'metricas' anidada en resultado_final
         metricas = resultado_final.get('metricas', {})
         
+        # Calcular p50/p95 de tiempos de generación y fill promedio si hay datos
+        tiempos = [m.tiempo_generacion_s for m in self.metricas_generaciones]
+        fill = [m.fill_pct for m in self.metricas_generaciones]
+        tiempos_p50 = float(np.median(tiempos)) if tiempos else 0.0
+        tiempos_p95 = float(np.percentile(tiempos, 95)) if tiempos else 0.0
+        fill_prom = float(np.mean(fill)) if fill else 0.0
+        
+        conv_flag = bool(convergencia) if convergencia is not None else bool(resultado_final.get('convergencia', False))
         metricas_ejecucion = MetricasEjecucion(
             # Configuración
             semilla=self.configuracion.get('semilla', 0),
@@ -242,61 +260,46 @@ class LoggerGenetico:
             workers=self.configuracion.get('workers', 0),
             tournament_size=self.configuracion.get('tournament_size', 3),
             random_immigrants_rate=self.configuracion.get('random_immigrants_rate', 0.05),
-            
-            # Pesos del fitness
             peso_huecos=self.configuracion.get('peso_huecos', 10.0),
             peso_primeras_ultimas=self.configuracion.get('peso_primeras_ultimas', 5.0),
             peso_balance_dia=self.configuracion.get('peso_balance_dia', 3.0),
             peso_bloques_semana=self.configuracion.get('peso_bloques_semana', 15.0),
-            
-            # Resultados
-            exito=resultado_final.get('exito', False),
-            fitness_final=resultado_final.get('mejor_fitness', resultado_final.get('mejor_fitness_final', 0.0)),
-            generaciones_completadas=resultado_final.get('generaciones_completadas', self.metricas_ejecucion.generaciones_completadas if self.metricas_ejecucion else 0),
-            convergencia=convergencia,
-            tiempo_total_s=tiempo_total,
-            
-            # KPIs de calidad
-            num_solapes=metricas.get('num_solapes', resultado_final.get('num_solapes', 0)),
-            num_huecos=metricas.get('num_huecos', resultado_final.get('num_huecos', 0)),
-            porcentaje_primeras_ultimas=metricas.get('porcentaje_primeras_ultimas', resultado_final.get('porcentaje_primeras_ultimas', 0.0)),
-            desviacion_balance_dia=metricas.get('desviacion_balance_dia', resultado_final.get('desviacion_balance_dia', 0.0)),
-            
-            # Estado del sistema
-            num_cursos=resultado_final.get('num_cursos', 0),
-            num_profesores=resultado_final.get('num_profesores', 0),
-            num_materias=resultado_final.get('num_materias', 0),
-            
-            # Evolución
+            exito=bool(resultado_final.get('exito', False)),
+            fitness_final=float(resultado_final.get('mejor_fitness', 0.0)),
+            generaciones_completadas=int(resultado_final.get('generaciones_completadas', 0)),
+            convergencia=conv_flag,
+            tiempo_total_s=float(resultado_final.get('tiempo_total_segundos', tiempo_total)),
+            num_solapes=int(metricas.get('num_solapes', 0)),
+            num_huecos=int(metricas.get('num_huecos', 0)),
+            porcentaje_primeras_ultimas=float(metricas.get('porcentaje_primeras_ultimas', 0.0)),
+            desviacion_balance_dia=float(metricas.get('desviacion_balance_dia', 0.0)),
+            num_cursos=int(metricas.get('num_cursos', 0)),
+            num_profesores=int(metricas.get('num_profesores', 0)),
+            num_materias=int(metricas.get('num_materias', 0)),
             generaciones_metricas=self.metricas_generaciones,
-            
-            # Timestamps
-            timestamp_inicio=datetime.fromtimestamp(self.tiempo_inicio).isoformat() if self.tiempo_inicio else "",
+            timestamp_inicio=self.metricas_ejecucion.timestamp_inicio if self.metricas_ejecucion else datetime.now().isoformat(),
             timestamp_fin=datetime.now().isoformat(),
-            
-            # Metadata
-            comentarios=mensaje,
+            comentarios=f"p50_gen_s={tiempos_p50:.3f}, p95_gen_s={tiempos_p95:.3f}, fill_prom={fill_prom:.1f}",
             tags="genetic_algorithm,optimization",
             metricas_por_generacion=self.metricas_generaciones
         )
-        
-        # Mantener accesible para asserts de tests
         self.metricas_ejecucion = metricas_ejecucion
         
+        # Log final
         self._escribir_log({
             "evento": "fin_ejecucion",
             "timestamp": datetime.now().isoformat(),
-            "tiempo_total_s": tiempo_total,
-            "exito": metricas_ejecucion.exito,
-            "fitness_final": metricas_ejecucion.fitness_final,
-            "mensaje": mensaje
+            "resultado": resultado_final,
+            "resumen": {
+                "tiempo_total_s": metricas_ejecucion.tiempo_total_s,
+                "generaciones": metricas_ejecucion.generaciones_completadas,
+                "fitness_final": metricas_ejecucion.fitness_final,
+                "p50_gen_s": tiempos_p50,
+                "p95_gen_s": tiempos_p95,
+            }
         })
         
-        self.logger.info(
-            f"Ejecución finalizada: {'✅ ÉXITO' if metricas_ejecucion.exito else '❌ FALLO'} - Fitness: {metricas_ejecucion.fitness_final:.2f} - Tiempo: {tiempo_total:.2f}s"
-        )
-        
-        self._guardar_metricas_completas(metricas_ejecucion)
+        self.logger.info(f"Ejecución finalizada. Total {metricas_ejecucion.generaciones_completadas} generaciones, tiempo {metricas_ejecucion.tiempo_total_s:.2f}s")
 
     # Aliases antiguos para compatibilidad
     def log_generacion(self, *args, **kwargs):

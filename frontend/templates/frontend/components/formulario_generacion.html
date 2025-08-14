@@ -60,9 +60,9 @@
           </svg>
         </button>
       </div>
-      <input type="number" name="poblacion_size" value="80" min="20" max="200" 
+                      <input type="number" name="poblacion_size" min="20" max="200" required value="80"
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-             title="Número de individuos en la población">
+             title="Número de individuos en la población" placeholder="Ej: 50">
       <p class="text-xs text-gray-500 mt-1">20-200 individuos</p>
     </div>
     
@@ -77,9 +77,9 @@
           </svg>
         </button>
       </div>
-      <input type="number" name="generaciones" value="500" min="50" max="1000" 
+                      <input type="number" name="generaciones" min="50" max="1000" required value="1000"
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-             title="Número máximo de generaciones">
+             title="Número máximo de generaciones" placeholder="Ej: 100">
       <p class="text-xs text-gray-500 mt-1">50-1000 generaciones</p>
     </div>
     
@@ -94,9 +94,9 @@
           </svg>
         </button>
       </div>
-      <input type="number" name="timeout_seg" value="180" min="60" max="600" 
+      <input type="number" name="timeout_seg" min="60" max="600" required value="600"
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-             title="Tiempo máximo de ejecución">
+             title="Tiempo máximo de ejecución" placeholder="Ej: 180">
       <p class="text-xs text-gray-500 mt-1">60-600 segundos</p>
     </div>
     
@@ -116,9 +116,9 @@
           </svg>
         </button>
       </div>
-      <input type="number" name="prob_cruce" value="0.85" min="0.1" max="1.0" step="0.05" 
+      <input type="number" name="prob_cruce" min="0.1" max="1.0" step="0.05" required value="0.9"
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-             title="Probabilidad de cruce entre individuos">
+             title="Probabilidad de cruce entre individuos" placeholder="Ej: 0.85">
       <p class="text-xs text-gray-500 mt-1">0.1-1.0</p>
     </div>
     
@@ -133,9 +133,9 @@
           </svg>
         </button>
       </div>
-      <input type="number" name="prob_mutacion" value="0.25" min="0.05" max="0.5" step="0.05" 
+      <input type="number" name="prob_mutacion" min="0.05" max="0.5" step="0.05" required value="0.05"
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-             title="Probabilidad de mutación">
+             title="Probabilidad de mutación" placeholder="Ej: 0.25">
       <p class="text-xs text-gray-500 mt-1">0.05-0.5</p>
     </div>
     
@@ -150,9 +150,9 @@
           </svg>
         </button>
       </div>
-      <input type="number" name="elite" value="4" min="1" max="10" 
+      <input type="number" name="elite" min="1" max="10" required value="5"
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-             title="Número de mejores individuos a preservar">
+             title="Número de mejores individuos a preservar" placeholder="Ej: 4">
       <p class="text-xs text-gray-500 mt-1">1-10 individuos</p>
     </div>
     
@@ -172,9 +172,9 @@
           </svg>
         </button>
       </div>
-      <input type="number" name="paciencia" value="20" min="5" max="50" 
+      <input type="number" name="paciencia" min="5" max="50" required value="50"
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-             title="Generaciones sin mejora antes de parar">
+             title="Generaciones sin mejora antes de parar" placeholder="Ej: 20">
       <p class="text-xs text-gray-500 mt-1">5-50 generaciones</p>
     </div>
     
@@ -189,9 +189,9 @@
           </svg>
         </button>
       </div>
-      <input type="number" name="workers" value="1" min="1" max="8" 
+      <input type="number" name="workers" min="1" max="8" required value="1"
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-             title="Número de procesos paralelos">
+             title="Número de procesos paralelos" placeholder="Ej: 1">
       <p class="text-xs text-gray-500 mt-1">1-8 procesos</p>
     </div>
     
@@ -206,9 +206,9 @@
           </svg>
         </button>
       </div>
-      <input type="number" name="semilla" value="42" min="1" max="999999" 
+      <input type="number" name="semilla" min="1" max="999999" required value="94601"
              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-             title="Semilla para aleatoriedad">
+             title="Semilla para aleatoriedad" placeholder="Ej: 42">
       <p class="text-xs text-gray-500 mt-1">1-999999</p>
     </div>
     

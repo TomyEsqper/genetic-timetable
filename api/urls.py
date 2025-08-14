@@ -17,4 +17,16 @@ urlpatterns = [
     
     # Endpoint de estado del sistema
     path('estado-sistema/', views.EstadoSistemaView.as_view(), name='api_estado_sistema'),
+
+    # Jobs async
+    path('jobs/generar-horario/', views.JobsGenerarHorarioView.as_view(), name='api_jobs_generar_horario'),
+    path('jobs/estado/<str:task_id>/', views.JobsEstadoView.as_view(), name='api_jobs_estado'),
+    path('jobs/cancelar/<str:task_id>/', views.JobsCancelarView.as_view(), name='api_jobs_cancelar'),
+
+    # Regeneración parcial
+    path('regenerar-parcial/', views.RegenerarParcialView.as_view(), name='api_regenerar_parcial'),
+
+    # Exportes por rol
+    path('export/curso/<int:curso_id>/<str:formato>/', views.ExportCursoView.as_view(), name='api_export_curso'),
+    path('export/profesor/<int:profesor_id>/<str:formato>/', views.ExportProfesorView.as_view(), name='api_export_profesor'),
 ]

@@ -2,16 +2,20 @@
 Módulo de máscaras booleanas precomputadas para optimización del algoritmo genético.
 
 Este módulo precomputa máscaras booleanas que permiten validaciones O(1) en lugar de O(n)
-durante la evaluación de fitness y generación de cromosomas.
+ durante la evaluación de fitness y generación de cromosomas.
 """
 
 import numpy as np
 from typing import Dict, List, Tuple, Set, Any
 from dataclasses import dataclass
 from .models import (
-    Profesor, Materia, Curso, Aula, BloqueHorario, 
-    MateriaGrado, MateriaProfesor, DisponibilidadProfesor, ConfiguracionColegio, Horario
+	Profesor, Materia, Curso, Aula, BloqueHorario, 
+	MateriaGrado, MateriaProfesor, DisponibilidadProfesor, ConfiguracionColegio, Horario,
+	Slot, ProfesorSlot, CursoMateriaRequerida
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class MascarasOptimizadas:
@@ -36,13 +40,21 @@ class MascarasOptimizadas:
 
 def _construir_indice_slots_desde_bd() -> Dict[str, Any]:
     """Construye el índice de slots (día x bloque_clase) 100% desde BD."""
-    # Derivar días desde disponibilidad u horarios
+    # Usar tabla Slot si existe, si no, derivar
+    slots_qs = list(Slot.objects.all().values('dia', 'bloque').order_by('dia', 'bloque'))
+    if slots_qs:
+        dias = sorted(list({s['dia'] for s in slots_qs}))
+        bloques = sorted(list({s['bloque'] for s in slots_qs}))
+        slots = [(s['dia'], s['bloque']) for s in slots_qs]
+        slot_to_idx = {(d, b): i for i, (d, b) in enumerate(slots)}
+        return {'dias': dias, 'bloques': bloques, 'slots': slots, 'slot_to_idx': slot_to_idx}
+
+    # Fallback: derivar desde disponibilidad/horarios/bloques
     dias_set = set(DisponibilidadProfesor.objects.values_list('dia', flat=True))
     if not dias_set:
         dias_set = set(Horario.objects.values_list('dia', flat=True)) if 'Horario' in globals() else set()
     dias = sorted(list(dias_set))
 
-    # Bloques tipo clase
     bloques = sorted(set(BloqueHorario.objects.filter(tipo='clase').values_list('numero', flat=True)))
     if not dias or not bloques:
         raise ValueError("No hay días o bloques 'clase' definidos en BD")
@@ -87,34 +99,59 @@ def precomputar_mascaras() -> MascarasOptimizadas:
 
     profesor_disponible = np.zeros((len(profesores), len(dias_clase), len(bloques_clase)), dtype=bool)
     mask_profesor_disponible_flat = np.zeros((len(profesores), len(slots)), dtype=bool)
-    for disp in DisponibilidadProfesor.objects.all():
-        pid = disp.profesor_id
-        if pid not in profesor_to_idx:
-            continue
-        pidx = profesor_to_idx[pid]
-        for b in range(int(disp.bloque_inicio), int(disp.bloque_fin) + 1):
-            if b in bloque_index and disp.dia in dia_index:
-                didx = dia_index[disp.dia]
-                bidx = bloque_index[b]
-                profesor_disponible[pidx, didx, bidx] = True
-                sidx = slot_to_idx.get((disp.dia, b))
-                if sidx is not None:
-                    mask_profesor_disponible_flat[pidx, sidx] = True
+
+    # Usar ProfesorSlot si está materializado; si no, derivar de DisponibilidadProfesor
+    ps_rows = list(ProfesorSlot.objects.values_list('profesor_id', 'slot_id'))
+    if ps_rows:
+        # Mapa rápido de slot_id -> (dia, bloque)
+        slot_map = { (s.dia, s.bloque): s.id for s in Slot.objects.all().only('id','dia','bloque') }
+        id_to_pair = { v: k for k, v in slot_map.items() }
+        for pid, slot_id in ps_rows:
+            if pid not in profesor_to_idx or slot_id not in id_to_pair:
+                continue
+            pidx = profesor_to_idx[pid]
+            d, b = id_to_pair[slot_id]
+            didx = dia_index.get(d)
+            bidx = bloque_index.get(b)
+            sidx = slot_to_idx.get((d, b))
+            if didx is None or bidx is None or sidx is None:
+                continue
+            profesor_disponible[pidx, didx, bidx] = True
+            mask_profesor_disponible_flat[pidx, sidx] = True
+    else:
+        for disp in DisponibilidadProfesor.objects.all():
+            pid = disp.profesor_id
+            if pid not in profesor_to_idx:
+                continue
+            pidx = profesor_to_idx[pid]
+            for b in range(int(disp.bloque_inicio), int(disp.bloque_fin) + 1):
+                if b in bloque_index and disp.dia in dia_index:
+                    didx = dia_index[disp.dia]
+                    bidx = bloque_index[b]
+                    profesor_disponible[pidx, didx, bidx] = True
+                    sidx = slot_to_idx.get((disp.dia, b))
+                    if sidx is not None:
+                        mask_profesor_disponible_flat[pidx, sidx] = True
 
     # Profesor-materia
     profesor_materia = np.zeros((len(profesores), len(materias)), dtype=bool)
-    for mp in MateriaProfesor.objects.values_list('profesor_id', 'materia_id'):
-        pid, mid = mp
+    for pid, mid in MateriaProfesor.objects.values_list('profesor_id', 'materia_id'):
         if pid in profesor_to_idx and mid in materia_to_idx:
             profesor_materia[profesor_to_idx[pid], materia_to_idx[mid]] = True
 
-    # Curso-materia (plan)
+    # Curso-materia desde snapshot (preferido), fallback a MateriaGrado
     curso_materia = np.zeros((len(cursos), len(materias)), dtype=bool)
-    grado_por_curso = {c.id: c.grado_id for c in Curso.objects.select_related('grado').all()}
-    for grado_id, materia_id in MateriaGrado.objects.values_list('grado_id', 'materia_id'):
-        for cid, gid in grado_por_curso.items():
-            if gid == grado_id and cid in curso_to_idx and materia_id in materia_to_idx:
-                curso_materia[curso_to_idx[cid], materia_to_idx[materia_id]] = True
+    cmr = list(CursoMateriaRequerida.objects.values_list('curso_id', 'materia_id'))
+    if cmr:
+        for cid, mid in cmr:
+            if cid in curso_to_idx and mid in materia_to_idx:
+                curso_materia[curso_to_idx[cid], materia_to_idx[mid]] = True
+    else:
+        grado_por_curso = {c.id: c.grado_id for c in Curso.objects.select_related('grado').all()}
+        for grado_id, materia_id in MateriaGrado.objects.values_list('grado_id', 'materia_id'):
+            for cid, gid in grado_por_curso.items():
+                if gid == grado_id and cid in curso_to_idx and materia_id in materia_to_idx:
+                    curso_materia[curso_to_idx[cid], materia_to_idx[materia_id]] = True
 
     # Curso-aula fija
     curso_aula_fija = np.zeros((len(cursos), len(aulas)), dtype=bool)
@@ -122,7 +159,30 @@ def precomputar_mascaras() -> MascarasOptimizadas:
         if curso.id in curso_to_idx and curso.aula_fija_id in aula_to_idx:
             curso_aula_fija[curso_to_idx[curso.id], aula_to_idx[curso.aula_fija_id]] = True
 
-    total_slots = len(slots) * max(1, len(cursos))  # total slots por curso (se usa externamente para métricas)
+    # Auditoría simple: 2-3 profesores aleatorios y sus vectores
+    try:
+        muestra = auditar_mascaras_aleatoria(
+            MascarasOptimizadas(
+                profesor_disponible=None,
+                bloque_tipo_clase=None,
+                profesor_materia=None,
+                curso_materia=None,
+                curso_aula_fija=None,
+                profesor_to_idx=profesor_to_idx,
+                materia_to_idx=materia_to_idx,
+                curso_to_idx=curso_to_idx,
+                aula_to_idx=aula_to_idx,
+                dias_clase=dias_clase,
+                bloques_por_dia=len(bloques_clase),
+                total_slots=len(slots),
+                slots=slots,
+                slot_to_idx=slot_to_idx,
+                mask_profesor_disponible_flat=mask_profesor_disponible_flat,
+            ), max_mostrar=3
+        )
+        logger.info(f"Auditoría máscaras (profesor -> #slots y vector): {muestra}")
+    except Exception as _:
+        pass
 
     return MascarasOptimizadas(
         profesor_disponible=profesor_disponible,

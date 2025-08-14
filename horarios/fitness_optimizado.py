@@ -244,20 +244,34 @@ def _calcular_penalizacion_bloques_semana(
     dias: np.ndarray,
     mascaras: MascarasOptimizadas
 ) -> float:
-    """Calcula penalización por diferencia con bloques_por_semana reales."""
-    from .models import MateriaGrado
-    # Mapear bloques requeridos por materia
-    bloques_requeridos = {}
-    for mg in MateriaGrado.objects.all():
-        bloques_requeridos[mg.materia_id] = mg.materia.bloques_por_semana
-    # Contar bloques asignados por materia
+    """Calcula penalización normalizada por diferencia con bloques_por_semana reales.
+    penalización = sum(|asignados-req|/max(1,req))
+    """
+    from .models import MateriaGrado, Curso, CursoMateriaRequerida
+    # Mapear requeridos por (curso,materia)
+    requeridos = {}
+    cmr = list(CursoMateriaRequerida.objects.values_list('curso_id','materia_id','bloques_requeridos'))
+    if cmr:
+        for cid, mid, req in cmr:
+            requeridos[(cid, mid)] = int(req)
+    else:
+        # Fallback: usar plan por grado (misma carga por curso del grado)
+        curso_to_grado = {c.id: c.grado_id for c in Curso.objects.all()}
+        for mg in MateriaGrado.objects.select_related('materia').all():
+            req = mg.materia.bloques_por_semana
+            for cid, gid in curso_to_grado.items():
+                if gid == mg.grado_id:
+                    requeridos[(cid, mg.materia_id)] = req
+    # Contar asignados por (curso, materia)
     asignados = {}
-    for mid in materia_ids:
-        asignados[mid] = asignados.get(mid, 0) + 1
-    penalizacion = 0.0
-    for mid, req in bloques_requeridos.items():
-        penalizacion += abs(asignados.get(mid, 0) - req)
-    return penalizacion
+    for c, m in zip(curso_ids.tolist(), materia_ids.tolist()):
+        asignados[(int(c), int(m))] = asignados.get((int(c), int(m)), 0) + 1
+    # Penalización normalizada
+    penal = 0.0
+    for key, req in requeridos.items():
+        asign = asignados.get(key, 0)
+        penal += abs(asign - req) / float(max(1, req))
+    return float(penal)
 
 def evaluar_calidad_solucion(
     resultado_fitness: ResultadoFitness

@@ -57,6 +57,22 @@ class ConfiguracionColegio(models.Model):
 
 class Profesor(models.Model):
     nombre = models.CharField(max_length=100, validators=[validate_nombre_profesor])
+    
+    # Nuevos campos para gestión de carga horaria
+    max_bloques_por_semana = models.IntegerField(
+        default=30,
+        validators=[MinValueValidator(1), MaxValueValidator(50)],
+        help_text="Máximo número de bloques que puede dictar por semana"
+    )
+    puede_dictar_relleno = models.BooleanField(
+        default=True,
+        help_text="Indica si el profesor puede dictar materias de relleno"
+    )
+    especialidad = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Área de especialidad del profesor"
+    )
 
     def clean(self):
         super().clean()
@@ -101,15 +117,56 @@ class Materia(models.Model):
     ], default='cualquiera')
     requiere_bloques_consecutivos = models.BooleanField(default=False)
     requiere_aula_especial = models.BooleanField(default=False)
+    
+    # Nuevos campos para materias de relleno y reglas pedagógicas
+    es_relleno = models.BooleanField(
+        default=False,
+        help_text="Indica si esta materia puede usarse como relleno para completar horarios"
+    )
+    prioridad = models.IntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Prioridad de la materia (1=alta, 10=baja). Materias de relleno suelen tener prioridad baja"
+    )
+    max_bloques_por_dia = models.IntegerField(
+        default=3,
+        validators=[MinValueValidator(1), MaxValueValidator(6)],
+        help_text="Máximo número de bloques de esta materia que puede tener un curso en un día"
+    )
+    requiere_doble_bloque = models.BooleanField(
+        default=False,
+        help_text="Indica si la materia requiere bloques consecutivos (ej: laboratorios)"
+    )
+    
+    TIPO_MATERIA_CHOICES = [
+        ('obligatoria', 'Obligatoria'),
+        ('relleno', 'Relleno'),
+        ('electiva', 'Electiva'),
+        ('proyecto', 'Proyecto'),
+    ]
+    tipo_materia = models.CharField(
+        max_length=20,
+        choices=TIPO_MATERIA_CHOICES,
+        default='obligatoria',
+        help_text="Tipo de materia para clasificación y priorización"
+    )
 
     def clean(self):
         super().clean()
         # Verificar que no exista otra materia con el mismo nombre
         if Materia.objects.filter(nombre__iexact=self.nombre).exclude(id=self.id).exists():
             raise ValidationError('Ya existe una materia con este nombre.')
+        
+        # Validaciones específicas para materias de relleno
+        if self.es_relleno:
+            if self.prioridad < 5:
+                raise ValidationError('Las materias de relleno deben tener prioridad baja (≥5)')
+            if self.tipo_materia not in ['relleno', 'proyecto']:
+                self.tipo_materia = 'relleno'
 
     def __str__(self):
-        return self.nombre
+        tipo_str = " (Relleno)" if self.es_relleno else ""
+        return f"{self.nombre}{tipo_str}"
 
 class MateriaProfesor(models.Model):
     profesor = models.ForeignKey(Profesor, on_delete=models.CASCADE)
@@ -216,6 +273,32 @@ class BloqueHorario(models.Model):
     def __str__(self):
         return f"Bloque {self.numero} ({self.tipo})"
 
+class Slot(models.Model):
+    dia = models.CharField(max_length=15, choices=[
+            ('lunes','Lunes'), ('martes','Martes'), ('miércoles','Miércoles'),
+            ('jueves','Jueves'), ('viernes','Viernes')
+    ])
+    bloque = models.IntegerField(validators=[MinValueValidator(1)])
+    hora_inicio = models.TimeField()
+    hora_fin = models.TimeField()
+    tipo = models.CharField(max_length=20, choices=[
+        ('clase', 'Clase'), ('descanso', 'Descanso'), ('almuerzo', 'Almuerzo')
+    ], default='clase')
+
+    def clean(self):
+        super().clean()
+        if self.hora_inicio >= self.hora_fin:
+            raise ValidationError('La hora de inicio debe ser anterior a la hora de fin.')
+
+    class Meta:
+        unique_together = ['dia', 'bloque']
+        indexes = [
+            models.Index(fields=['dia', 'bloque']),
+        ]
+
+    def __str__(self):
+        return f"{self.dia} - Bloque {self.bloque} ({self.tipo})"
+
 class Horario(models.Model):
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE)
     materia = models.ForeignKey(Materia, on_delete=models.CASCADE)
@@ -227,6 +310,7 @@ class Horario(models.Model):
     bloque = models.IntegerField(
         validators=[MinValueValidator(1, 'El bloque debe ser al menos 1')]
     )
+    slot = models.ForeignKey('Slot', null=True, blank=True, on_delete=models.SET_NULL)
 
     def clean(self):
         super().clean()
@@ -256,9 +340,210 @@ class Horario(models.Model):
             ['curso', 'dia', 'bloque'],  # Un curso no puede tener dos materias en el mismo día y bloque
             ['profesor', 'dia', 'bloque']  # Un profesor no puede estar en dos lugares al mismo tiempo
         ]
+        constraints = [
+            models.UniqueConstraint(fields=['curso', 'slot'], name='uniq_horario_curso_slot'),
+            models.UniqueConstraint(fields=['profesor', 'slot'], name='uniq_horario_profesor_slot'),
+        ]
 
     def __str__(self):
         return f"{self.curso} - {self.materia} - {self.dia} Bloque {self.bloque}"
+
+class ProfesorSlot(models.Model):
+    profesor = models.ForeignKey(Profesor, on_delete=models.CASCADE)
+    slot = models.ForeignKey(Slot, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ['profesor', 'slot']
+        indexes = [
+            models.Index(fields=['profesor', 'slot']),
+        ]
+
+    def __str__(self):
+        return f"{self.profesor} @ {self.slot}"
+
+class CursoMateriaRequerida(models.Model):
+    curso = models.ForeignKey(Curso, on_delete=models.CASCADE)
+    materia = models.ForeignKey(Materia, on_delete=models.CASCADE)
+    bloques_requeridos = models.IntegerField(validators=[MinValueValidator(0)])
+
+    class Meta:
+        unique_together = ['curso', 'materia']
+        indexes = [
+            models.Index(fields=['curso', 'materia']),
+        ]
+
+    def __str__(self):
+        return f"{self.curso} - {self.materia}: {self.bloques_requeridos} bloques"
+
+class ReglaPedagogica(models.Model):
+    """
+    Modelo para definir reglas pedagógicas específicas del colegio
+    """
+    nombre = models.CharField(max_length=100, unique=True)
+    descripcion = models.TextField(help_text="Descripción detallada de la regla")
+    activa = models.BooleanField(default=True)
+    
+    # Tipos de reglas
+    TIPO_REGLA_CHOICES = [
+        ('max_materia_dia', 'Máximo de una materia por día'),
+        ('bloques_consecutivos', 'Bloques consecutivos requeridos'),
+        ('distribucion_semanal', 'Distribución semanal equilibrada'),
+        ('incompatibilidad', 'Materias incompatibles'),
+        ('prioridad_horario', 'Prioridad de horario'),
+    ]
+    tipo_regla = models.CharField(max_length=30, choices=TIPO_REGLA_CHOICES)
+    
+    # Parámetros de la regla (JSON)
+    parametros = models.JSONField(
+        default=dict,
+        help_text="Parámetros específicos de la regla en formato JSON"
+    )
+    
+    # Prioridad de aplicación (1=alta, 10=baja)
+    prioridad = models.IntegerField(
+        default=5,
+        validators=[MinValueValidator(1), MaxValueValidator(10)]
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['prioridad', 'nombre']
+        verbose_name = "Regla Pedagógica"
+        verbose_name_plural = "Reglas Pedagógicas"
+    
+    def __str__(self):
+        estado = "✓" if self.activa else "✗"
+        return f"{estado} {self.nombre} (P{self.prioridad})"
+
+class ConfiguracionCurso(models.Model):
+    """
+    Configuración específica por curso para manejo de carga horaria y relleno
+    """
+    curso = models.OneToOneField(Curso, on_delete=models.CASCADE, related_name='configuracion')
+    
+    # Configuración de slots
+    slots_objetivo = models.IntegerField(
+        default=30,
+        validators=[MinValueValidator(1), MaxValueValidator(50)],
+        help_text="Número objetivo de slots/bloques por semana para este curso"
+    )
+    
+    permite_relleno = models.BooleanField(
+        default=True,
+        help_text="Permite usar materias de relleno para completar la carga horaria"
+    )
+    
+    min_bloques_relleno = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Mínimo número de bloques de relleno requeridos"
+    )
+    
+    max_bloques_relleno = models.IntegerField(
+        default=5,
+        validators=[MinValueValidator(0)],
+        help_text="Máximo número de bloques de relleno permitidos"
+    )
+    
+    # Preferencias de distribución
+    distribucion_equilibrada = models.BooleanField(
+        default=True,
+        help_text="Intenta distribuir las materias equilibradamente durante la semana"
+    )
+    
+    evitar_huecos = models.BooleanField(
+        default=True,
+        help_text="Evita dejar bloques vacíos entre clases"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def clean(self):
+        super().clean()
+        if self.min_bloques_relleno > self.max_bloques_relleno:
+            raise ValidationError('El mínimo de bloques de relleno no puede ser mayor al máximo')
+    
+    def calcular_bloques_faltantes(self):
+        """Calcula cuántos bloques de relleno se necesitan para completar el objetivo"""
+        # Obtener materias obligatorias del curso
+        materias_obligatorias = MateriaGrado.objects.filter(
+            grado=self.curso.grado,
+            materia__es_relleno=False
+        )
+        
+        total_obligatorios = sum(mg.materia.bloques_por_semana for mg in materias_obligatorias)
+        faltantes = max(0, self.slots_objetivo - total_obligatorios)
+        
+        return min(faltantes, self.max_bloques_relleno)
+    
+    class Meta:
+        verbose_name = "Configuración de Curso"
+        verbose_name_plural = "Configuraciones de Curso"
+    
+    def __str__(self):
+        return f"Config {self.curso.nombre} ({self.slots_objetivo} slots)"
+
+class MateriaRelleno(models.Model):
+    """
+    Modelo específico para gestionar materias de relleno disponibles
+    """
+    materia = models.OneToOneField(
+        Materia, 
+        on_delete=models.CASCADE, 
+        limit_choices_to={'es_relleno': True},
+        related_name='config_relleno'
+    )
+    
+    # Configuración específica de relleno
+    flexible_bloques = models.BooleanField(
+        default=True,
+        help_text="Permite ajustar el número de bloques según necesidad"
+    )
+    
+    min_bloques = models.IntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        help_text="Mínimo número de bloques cuando se usa como relleno"
+    )
+    
+    max_bloques = models.IntegerField(
+        default=3,
+        validators=[MinValueValidator(1)],
+        help_text="Máximo número de bloques cuando se usa como relleno"
+    )
+    
+    # Compatibilidad con grados
+    grados_compatibles = models.ManyToManyField(
+        Grado,
+        blank=True,
+        help_text="Grados en los que se puede usar esta materia de relleno"
+    )
+    
+    # Profesores que pueden dictarla
+    profesores_disponibles = models.ManyToManyField(
+        Profesor,
+        limit_choices_to={'puede_dictar_relleno': True},
+        help_text="Profesores que pueden dictar esta materia de relleno"
+    )
+    
+    activa = models.BooleanField(default=True)
+    
+    def clean(self):
+        super().clean()
+        if not self.materia.es_relleno:
+            raise ValidationError('Solo se pueden configurar materias marcadas como relleno')
+        if self.min_bloques > self.max_bloques:
+            raise ValidationError('El mínimo de bloques no puede ser mayor al máximo')
+    
+    class Meta:
+        verbose_name = "Configuración de Materia de Relleno"
+        verbose_name_plural = "Configuraciones de Materias de Relleno"
+    
+    def __str__(self):
+        return f"Relleno: {self.materia.nombre} ({self.min_bloques}-{self.max_bloques} bloques)"
 
 class TrackerCorrida(models.Model):
     """
@@ -415,3 +700,29 @@ class TrackerCorrida(models.Model):
         """Obtiene corridas que pueden reproducirse con el estado actual"""
         corridas = cls.objects.filter(exito=True)
         return [c for c in corridas if c.es_reproducible()]
+
+class Run(models.Model):
+	params_json = models.JSONField()
+	dataset_hash = models.CharField(max_length=64)
+	started_at = models.DateTimeField(auto_now_add=True)
+	ended_at = models.DateTimeField(null=True, blank=True)
+	status = models.CharField(max_length=20, choices=[('queued','queued'),('running','running'),('done','done'),('failed','failed')], default='queued')
+	best_obj = models.FloatField(default=0.0)
+	log_path = models.CharField(max_length=255, blank=True)
+	class Meta:
+		indexes = [
+			models.Index(fields=['started_at']),
+			models.Index(fields=['status']),
+		]
+
+class RunMetric(models.Model):
+	run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name='metrics')
+	gen = models.IntegerField()
+	best = models.FloatField()
+	avg = models.FloatField()
+	fill_pct = models.FloatField()
+	conflicts = models.IntegerField(default=0)
+	t_s = models.FloatField()
+	class Meta:
+		unique_together = ['run', 'gen']
+		indexes = [models.Index(fields=['run','gen'])]
