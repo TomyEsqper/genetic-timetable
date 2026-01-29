@@ -1,19 +1,18 @@
 from django.core.management.base import BaseCommand
-from horarios.application.services.genetico_funcion import generar_horarios_genetico
+from horarios.application.services.generador_demand_first import GeneradorDemandFirst
 import time
 
 class Command(BaseCommand):
-    help = "🧪 Prueba la generación de horarios con parámetros optimizados"
+    help = "🧪 Prueba la generación de horarios con lógica Demand-First"
 
     def add_arguments(self, parser):
         parser.add_argument("--iteraciones", type=int, default=3, help="Número de intentos de generación")
-        parser.add_argument("--timeout", type=int, default=120, help="Timeout en segundos por intento")
+        parser.add_argument("--timeout", type=int, default=120, help="Timeout en segundos por intento (no usado directamente en DF)")
 
     def handle(self, *args, **options):
-        self.stdout.write("🧪 Iniciando pruebas de generación de horarios...")
+        self.stdout.write("🧪 Iniciando pruebas de generación de horarios (Demand-First)...")
         
         iteraciones = options["iteraciones"]
-        timeout = options["timeout"]
         
         exitosos = 0
         fallidos = 0
@@ -24,27 +23,22 @@ class Command(BaseCommand):
             try:
                 inicio = time.time()
                 
-                # Parámetros más conservadores para mayor estabilidad
-                resultado = generar_horarios_genetico(
-                    poblacion_size=30,        # Población más pequeña
-                    generaciones=80,          # Menos generaciones
-                    prob_cruce=0.8,           # Probabilidad de cruce más baja
-                    prob_mutacion=0.15,       # Mutación más conservadora
-                    elite=3,                  # Más individuos élite
-                    paciencia=20,             # Más paciencia
-                    timeout_seg=timeout,      # Timeout configurable
-                    semilla=42 + i,           # Semilla diferente cada vez
-                    workers=1                 # Un solo worker para estabilidad
+                # Parámetros para Demand First
+                generador = GeneradorDemandFirst()
+                resultado = generador.generar_horarios(
+                    semilla=42 + i,
+                    max_iteraciones=1000,
+                    paciencia=100
                 )
                 
                 tiempo_total = time.time() - inicio
                 
-                if resultado and resultado.get('mejor_fitness'):
+                if resultado and resultado.get('exito'):
                     self.stdout.write(
                         self.style.SUCCESS(
                             f"✅ ÉXITO en intento {i+1}:\n"
-                            f"   - Fitness: {resultado.get('mejor_fitness', 'N/A')}\n"
-                            f"   - Generaciones: {resultado.get('generaciones_ejecutadas', 'N/A')}\n"
+                            f"   - Calidad: {resultado.get('calidad', 'N/A')}\n"
+                            f"   - Slots: {resultado.get('estadisticas', {}).get('slots_generados', 'N/A')}\n"
                             f"   - Tiempo: {tiempo_total:.2f}s"
                         )
                     )
@@ -52,7 +46,7 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"⚠️  INTENTO {i+1} completado pero sin fitness válido"
+                            f"⚠️  INTENTO {i+1} completado pero sin éxito"
                         )
                     )
                     fallidos += 1

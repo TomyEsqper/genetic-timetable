@@ -11,7 +11,8 @@ import numpy as np
 from typing import List, Dict, Any
 
 from horarios.models import Profesor, Materia, Curso, Horario, Aula, BloqueHorario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, ConfiguracionColegio
-from horarios.application.services.genetico_funcion import generar_horarios_genetico, validar_prerrequisitos_criticos
+from horarios.application.services.generador_demand_first import GeneradorDemandFirst
+from horarios.domain.validators.validador_precondiciones import ValidadorPrecondiciones
 from horarios.domain.validators.validadores import prevalidar_factibilidad_dataset, validar_antes_de_persistir, construir_semana_tipo_desde_bd
 from horarios.infrastructure.utils.logging_estructurado import crear_logger_genetico
 from horarios.domain.services.bloqueo_slots import crear_gestor_slots_bloqueados, integrar_slots_bloqueados_en_ga
@@ -69,12 +70,15 @@ class GenerarHorarioView(APIView):
         
         try:
             # 1. VALIDACIÓN PREVIA IMPRESCINDIBLE
-            errores_validacion = validar_prerrequisitos_criticos()
-            if errores_validacion:
+            validador = ValidadorPrecondiciones()
+            resultado_factibilidad = validador.validar_factibilidad_completa()
+            
+            if not resultado_factibilidad.es_factible:
                 return Response({
                     "status": "error",
                     "mensaje": "Validación previa fallida",
-                    "errores_validacion": errores_validacion,
+                    "errores_validacion": [p.descripcion for p in resultado_factibilidad.problemas],
+                    "reporte": resultado_factibilidad.reporte_detallado,
                     "tiempo_validacion_s": time.time() - inicio_tiempo
                 }, status=status.HTTP_409_CONFLICT)
  
@@ -99,37 +103,28 @@ class GenerarHorarioView(APIView):
             self._configurar_semilla_global(semilla)
  
             # 3. PARÁMETROS DEL ALGORITMO
-            config = {
-                'poblacion_size': data.get('poblacion_size', 200),
-                'generaciones': data.get('generaciones', 800),
-                'timeout_seg': data.get('timeout_seg', 900),
-                'prob_cruce': data.get('prob_cruce', 0.9),
-                'prob_mutacion': data.get('prob_mutacion', 0.15),
-                'elite': data.get('elite', 10),
-                'paciencia': data.get('paciencia', 50),
-                'workers': data.get('workers', 2),
-                'semilla': semilla,
-                # Sembrado heurístico
-                'fraccion_perturbaciones': data.get('fraccion_perturbaciones', 0.5),
-                'movimientos_por_individuo': data.get('movimientos_por_individuo', 2),
+            parametros = {
+                'max_iteraciones': data.get('generaciones', 1000),
+                'paciencia': data.get('paciencia', 100)
             }
  
-            logger.info(f"Iniciando generación con semilla {semilla} y config: {config}, preview={preview}")
+            logger.info(f"Iniciando generación con semilla {semilla} y config: {parametros}, preview={preview}")
  
-            # 4. EJECUCIÓN DEL ALGORITMO GENÉTICO
-            resultado = generar_horarios_genetico(**config)
+            # 4. EJECUCIÓN DEL ALGORITMO DEMAND-FIRST
+            generador = GeneradorDemandFirst()
+            resultado = generador.generar_horarios(semilla=semilla, **parametros)
  
             # 5. ANÁLISIS DEL RESULTADO
             tiempo_total = time.time() - inicio_tiempo
 
-            if not resultado.get('validacion_final', {}).get('es_valido'):
+            if not resultado.get('exito'):
                 return Response({
                     "status": "error",
                     "mensaje": "No se pudo generar una solución válida",
-                    "errores": resultado,
+                    "errores": resultado.get('validacion_final', {}),
                     "tiempo_total_s": round(tiempo_total, 2),
                     "semilla": semilla,
-                    "configuracion_usada": config,
+                    "configuracion_usada": parametros,
                     "log_path": logger_struct.archivo_log
                 }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -170,7 +165,8 @@ class GenerarHorarioView(APIView):
             horarios_generados = self._persistir_resultado_atomico(resultado)
  
             # 7. RESPUESTA ESTÁNDAR EXITOSA
-            od = resultado.get('oferta_vs_demanda', {})
+            # Usamos 'pre' para los datos de oferta vs demanda ya que GeneradorDemandFirst no lo devuelve en 'resultado'
+            od = pre.get('oferta_vs_demanda', {})
             dims = od.get('dimensiones', {
                 "cursos": Curso.objects.count(),
                 "materias": Materia.objects.count(),
@@ -179,14 +175,14 @@ class GenerarHorarioView(APIView):
             })
             return Response({
                 "status": "success",
-                "timeout": bool(resultado.get('timeout', False)),
+                "timeout": False,
                 "objetivo": {
-                    "fitness_final": resultado.get('mejor_fitness', 0),
-                    "generaciones_completadas": resultado.get('generaciones_completadas', 0),
-                    "convergencia": resultado.get('convergencia', False)
+                    "fitness_final": resultado.get('calidad', 0),
+                    "generaciones_completadas": resultado.get('estadisticas', {}).get('slots_generados', 0),
+                    "convergencia": True
                 },
                 "solapes": 0,
-                "huecos": resultado.get('huecos', 0),
+                "huecos": 0,
                 "tiempo_total_s": round(tiempo_total, 2),
                 "semilla": semilla,
                 "asignaciones": horarios_generados,

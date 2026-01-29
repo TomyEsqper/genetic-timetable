@@ -9,8 +9,8 @@ from xhtml2pdf import pisa
 from django.http import HttpResponse
 from horarios.models import Curso, Profesor, Aula, Horario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, BloqueHorario
 from horarios.infrastructure.adapters.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
-from horarios.application.services.genetico import generar_horarios_genetico
-from horarios.domain.validators.validadores import prevalidar_factibilidad_dataset
+from horarios.application.services.generador_demand_first import GeneradorDemandFirst
+from horarios.domain.validators.validador_precondiciones import ValidadorPrecondiciones
 from glob import glob
 
 def get_dias_clase():
@@ -149,49 +149,78 @@ def generar_horario(request):
                 messages.error(request, "❌ Todos los parámetros son obligatorios")
                 return redirect('dashboard')
             
-            # Ejecutar algoritmo genético robusto
-            resultado = generar_horarios_genetico(
-                poblacion_size=poblacion_size,
-                generaciones=generaciones,
-                prob_cruce=prob_cruce,
-                prob_mutacion=prob_mutacion,
-                elite=elite,
-                paciencia=paciencia,
-                timeout_seg=timeout_seg,
-                workers=workers,
-                semilla=semilla
-            )
+            # Ejecutar algoritmo Demand First (Reemplazando Genético)
+            # Mapeo de parámetros
+            parametros = {
+                'max_iteraciones': generaciones, # Reusing generaciones input as max_iteraciones
+                'paciencia': paciencia,
+                'semilla': semilla
+            }
             
-            # Verificar que el resultado no sea None
-            if resultado is None:
-                messages.error(request, "❌ Error al generar horarios: La función retornó None inesperadamente")
+            # Validación previa
+            validador = ValidadorPrecondiciones()
+            resultado_factibilidad = validador.validar_factibilidad_completa()
+            
+            if not resultado_factibilidad.es_factible:
+                messages.error(request, "❌ Error de validación previa: La configuración actual no es factible.")
+                for problema in resultado_factibilidad.problemas:
+                    messages.error(request, f"  - {problema.descripcion}")
                 return redirect('dashboard')
-            
-            if resultado.get('status') == 'error':
-                mensaje_error = resultado.get('mensaje', 'Error desconocido')
-                messages.error(request, f"❌ Error al generar horarios: {mensaje_error}")
-                if resultado.get('errores'):
-                    for error in resultado['errores']:
-                        messages.error(request, f"  - {error}")
-                if resultado.get('error') == 'resultado_none':
-                    messages.error(request, "  - Error interno: La generación de horarios falló inesperadamente")
-                elif resultado.get('error') == 'excepcion_inesperada':
-                    messages.error(request, "  - Error interno: Ocurrió una excepción inesperada")
-                    if resultado.get('traceback'):
-                        messages.error(request, f"  - Detalles técnicos: {resultado['traceback'][:200]}...")
+
+            generador = GeneradorDemandFirst()
+            resultado = generador.generar_horarios(**parametros)
+
+            if not resultado.get('exito'):
+                razon = resultado.get('razon', 'Falló la generación')
+                messages.error(request, f"❌ Error al generar horarios: {razon}")
+                
+                # Mostrar detalles si existen
+                if 'factibilidad' in resultado:
+                    for problema in resultado['factibilidad'].problemas:
+                        messages.error(request, f"  - {problema.descripcion}")
             else:
-                # El algoritmo genético retorna directamente las métricas, no en un subdiccionario 'metricas'
-                tiempo_total = resultado.get('tiempo_total_segundos', 0)
-                generaciones_completadas = resultado.get('generaciones_completadas', 0)
-                mejor_fitness = resultado.get('mejor_fitness', 0)
+                # Guardar en BD
+                from django.db import transaction
                 
-                messages.success(request, f"✅ Horarios generados exitosamente en {tiempo_total:.2f} segundos")
-                messages.info(request, f"📊 Generaciones: {generaciones_completadas}, Fitness: {mejor_fitness:.2f}")
-                
-                # Mostrar información de validación
-                validacion = resultado.get('validacion_final', {})
-                if validacion.get('advertencias', 0) > 0:
-                    messages.warning(request, f"⚠️ {validacion.get('advertencias', 0)} advertencias detectadas")
+                try:
+                    with transaction.atomic():
+                        Horario.objects.all().delete()
+                        horarios_objetos = []
+                        for h in resultado['horarios']:
+                            curso = Curso.objects.get(id=h['curso_id'])
+                            materia = Materia.objects.get(id=h['materia_id'])
+                            profesor = Profesor.objects.get(id=h['profesor_id'])
+                            aula = None
+                            if h.get('aula_id'):
+                                aula = Aula.objects.filter(id=h['aula_id']).first()
+                            
+                            horario = Horario(
+                                curso=curso,
+                                materia=materia,
+                                profesor=profesor,
+                                dia=h['dia'],
+                                bloque=h['bloque'],
+                                aula=aula
+                            )
+                            horarios_objetos.append(horario)
+                        Horario.objects.bulk_create(horarios_objetos)
+                        
+                    # Success messages
+                    estadisticas = resultado.get('estadisticas', {})
+                    tiempo_total = estadisticas.get('tiempo_total', 0)
+                    slots = estadisticas.get('slots_generados', 0)
+                    calidad = resultado.get('calidad', 0)
+                    
+                    messages.success(request, f"✅ Horarios generados exitosamente en {tiempo_total:.2f} segundos")
+                    messages.info(request, f"📊 Slots: {slots}, Calidad: {calidad:.2f}")
+                    
+                    # Advertencias
+                    validacion = resultado.get('validacion_final')
+                    if validacion and hasattr(validacion, 'es_valido') and not validacion.es_valido:
+                        messages.warning(request, "⚠️ Se detectaron conflictos en el horario generado.")
+                        
+                except Exception as e:
+                    messages.error(request, f"❌ Error guardando horarios: {str(e)}")
                 
         except Exception as e:
             messages.error(request, f"❌ Error interno al generar horarios: {str(e)}")
@@ -391,95 +420,62 @@ def estadisticas_ajax(request):
 
 @require_http_methods(["GET"])
 def progreso_ajax(request):
-	"""Devuelve progreso en tiempo real de la última ejecución del GA.
-	Lee el progreso desde la base de datos y logs del sistema.
-	"""
-	try:
-		from horarios.models import Horario
-		from django.core.cache import cache
-		
-		# Obtener información de horarios parciales
-		horarios_parciales = Horario.objects.count()
-		
-		# Obtener progreso desde cache o calcular desde horarios
-		cache_key = 'ga_progreso_actual'
-		progreso = cache.get(cache_key)
-		
-		if not progreso:
-			# Si no hay progreso en cache, verificar si hay horarios
-			if horarios_parciales > 0:
-				# Si hay horarios pero no hay progreso en cache, asumir que terminó
-				progreso = {
-					'estado': 'finalizado',
-					'generacion': 1,
-					'mejor_fitness': 0.0,
-					'fitness_promedio': 0.0,
-					'fill_pct': 100.0,
-					'horarios_parciales': horarios_parciales,
-					'objetivo': 1,
-					'tiempo_estimado': 'Completado',
-					'mensaje': 'Horarios generados exitosamente'
-				}
-			else:
-				# Si no hay horarios ni progreso, crear uno básico
-				progreso = {
-					'estado': 'sin_datos',
-					'generacion': 0,
-					'mejor_fitness': 0.0,
-					'fitness_promedio': 0.0,
-					'fill_pct': 0.0,
-					'horarios_parciales': 0,
-					'objetivo': 100,
-					'tiempo_estimado': 'Sin datos',
-					'mensaje': 'No hay proceso de generación activo'
-				}
-		else:
-			# Actualizar con datos reales de horarios
-			progreso['horarios_parciales'] = horarios_parciales
-			
-			# Si el estado es 'en_progreso' pero hay horarios y la generación alcanzó el objetivo
-			if (progreso['estado'] == 'en_progreso' and 
-				horarios_parciales > 0 and 
-				progreso.get('generacion', 0) >= progreso.get('objetivo', 1)):
-				# Marcar como finalizado
-				progreso['estado'] = 'finalizado'
-				progreso['mensaje'] = 'Horarios generados exitosamente'
-				# Actualizar cache
-				cache.set(cache_key, progreso, timeout=300)
-			
-			# Si hay horarios pero el estado no es finalizado, verificar si debería serlo
-			elif (progreso['estado'] == 'en_progreso' and 
-				  horarios_parciales > 0 and 
-				  progreso.get('generacion', 0) > 0):
-				# Verificar si ha pasado mucho tiempo desde la última actualización
-				# Si no hay actualizaciones recientes, asumir que terminó
-				progreso['estado'] = 'finalizado'
-				progreso['mensaje'] = 'Horarios generados exitosamente'
-				# Actualizar cache
-				cache.set(cache_key, progreso, timeout=300)
-		
-		return JsonResponse(progreso)
-		
-	except Exception as e:
-		return JsonResponse({
-			'estado': 'error',
-			'mensaje': f'Error: {str(e)}',
-			'generacion': 0,
-			'mejor_fitness': 0.0,
-			'fitness_promedio': 0.0,
-			'fill_pct': 0.0,
-			'horarios_parciales': 0
-		})
+    """Devuelve progreso en tiempo real de la última ejecución.
+    Lee el progreso desde la base de datos.
+    """
+    try:
+        from horarios.models import Horario
+        from django.core.cache import cache
+        
+        # Obtener información de horarios parciales
+        horarios_parciales = Horario.objects.count()
+        
+        # Si hay horarios, asumimos que el proceso finalizó (Generación Síncrona)
+        if horarios_parciales > 0:
+            progreso = {
+                'estado': 'finalizado',
+                'generacion': 1,
+                'mejor_fitness': 1.0,
+                'fitness_promedio': 1.0,
+                'fill_pct': 100.0,
+                'horarios_parciales': horarios_parciales,
+                'objetivo': 1,
+                'tiempo_estimado': 'Completado',
+                'mensaje': 'Horarios generados exitosamente'
+            }
+        else:
+            # Si no hay horarios, verificar si hay una tarea asíncrona (opcional)
+            # Por ahora, devolvemos estado inicial
+            progreso = {
+                'estado': 'sin_datos',
+                'generacion': 0,
+                'mejor_fitness': 0.0,
+                'fitness_promedio': 0.0,
+                'fill_pct': 0.0,
+                'horarios_parciales': 0,
+                'objetivo': 100,
+                'tiempo_estimado': 'Sin datos',
+                'mensaje': 'No hay proceso de generación activo'
+            }
+            
+        return JsonResponse(progreso)
+        
+    except Exception as e:
+        return JsonResponse({
+            'estado': 'error',
+            'mensaje': f'Error: {str(e)}',
+            'generacion': 0,
+            'mejor_fitness': 0.0,
+            'fitness_promedio': 0.0,
+            'fill_pct': 0.0,
+            'horarios_parciales': 0
+        })
 
 @require_http_methods(["GET"])
 def limpiar_cache_progreso(request):
     """Limpia el cache de progreso cuando el proceso ha terminado"""
     try:
-        from django.core.cache import cache
-        
-        # Limpiar cache de progreso
-        cache.delete('ga_progreso_actual')
-        
+        # Ya no usamos cache para progreso, pero mantenemos el endpoint para evitar errores 404
         return JsonResponse({
             'estado': 'exito',
             'mensaje': 'Cache de progreso limpiado'

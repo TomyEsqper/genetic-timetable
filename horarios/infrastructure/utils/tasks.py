@@ -33,66 +33,65 @@ except ImportError:
     logging.warning("Celery no está disponible. Las tareas se ejecutarán de forma síncrona.")
 
 # Importamos el generador de horarios
-from horarios.application.services.genetico_funcion import generar_horarios_genetico
+from horarios.application.services.generador_demand_first import GeneradorDemandFirst
 from horarios.models import ConfiguracionColegio
 
 
 @shared_task(bind=True, name='horarios.generar_horarios_async')
 def generar_horarios_async(self, colegio_id: int, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-	"""Tarea asíncrona para generar horarios escolares.
-	
-	Esta función es un wrapper para generar_horarios_genetico que puede ejecutarse
-	como una tarea de Celery. Si Celery no está disponible, se ejecutará de forma síncrona.
-	"""
-	start_time = time.time()
-	logging.info(f"Iniciando generación asíncrona de horarios para colegio ID: {colegio_id}")
-	default_params = {
-		'tamano_poblacion': 100,
-		'num_generaciones': 100,
-		'probabilidad_mutacion': 0.1,
-		'elitismo': 0.1,
-		'semilla': None,
-		'modo_debug': False
-	}
-	if params is None:
-		params = {}
-	params = {**default_params, **params}
-	try:
-		# Estado: en-cola -> corriendo
-		if CELERY_AVAILABLE and hasattr(self, 'update_state'):
-			self.update_state(state='STARTED', meta={'status': 'corriendo'})
-		# Ejecutar GA (wrapped)
-		resultado = generar_horarios_genetico(
-			poblacion_size=params.get('tamano_poblacion', 100),
-			generaciones=params.get('num_generaciones', 100),
-			prob_cruce=0.85,
-			prob_mutacion=params.get('probabilidad_mutacion', 0.1),
-			elite=max(1, int(params.get('elitismo', 0.1) * params.get('tamano_poblacion', 100))),
-			timeout_seg= params.get('timeout_seg', 300),
-			semilla=params.get('semilla', None),
-			workers=params.get('workers', 1)
-		)
-		if CELERY_AVAILABLE and hasattr(self, 'update_state'):
-			self.update_state(state='PROGRESS', meta={'status': 'mejor-hasta-ahora', 'timeout': bool(resultado.get('timeout', False)), 'mejor_fitness': resultado.get('mejor_fitness')})
-		elapsed_time = time.time() - start_time
-		return {
-			'status': 'success' if resultado.get('exito') else 'error',
-			'colegio_id': colegio_id,
-			'tiempo_ejecucion': elapsed_time,
-			'fitness_final': resultado.get('mejor_fitness', 0),
-			'conflictos': resultado.get('conflictos_finales', 0),
-			'generaciones': resultado.get('generaciones_completadas', 0),
-			'horarios_generados': len(resultado.get('horarios', [])),
-			'timeout': bool(resultado.get('timeout', False)),
-		}
-	except Exception as e:
-		logging.error(f"Error en generación asíncrona de horarios: {str(e)}")
-		return {
-			'status': 'error',
-			'colegio_id': colegio_id,
-			'error': str(e),
-			'tiempo_ejecucion': time.time() - start_time
-		}
+    """Tarea asíncrona para generar horarios escolares (Demand-First).
+    
+    Esta función es un wrapper para GeneradorDemandFirst que puede ejecutarse
+    como una tarea de Celery. Si Celery no está disponible, se ejecutará de forma síncrona.
+    """
+    start_time = time.time()
+    logging.info(f"Iniciando generación asíncrona de horarios para colegio ID: {colegio_id}")
+    
+    default_params = {
+        'max_iteraciones': 1000,
+        'paciencia': 100,
+        'semilla': None
+    }
+    if params is None:
+        params = {}
+    
+    # Mapeo de parámetros antiguos a nuevos
+    run_params = {
+        'max_iteraciones': params.get('num_generaciones', default_params['max_iteraciones']),
+        'paciencia': params.get('paciencia', default_params['paciencia']),
+        'semilla': params.get('semilla', default_params['semilla'])
+    }
+    
+    try:
+        # Estado: en-cola -> corriendo
+        if CELERY_AVAILABLE and hasattr(self, 'update_state'):
+            self.update_state(state='STARTED', meta={'status': 'corriendo'})
+        
+        # Ejecutar Generador
+        generador = GeneradorDemandFirst()
+        resultado = generador.generar_horarios(**run_params)
+        
+        if CELERY_AVAILABLE and hasattr(self, 'update_state'):
+            self.update_state(state='SUCCESS', meta={'status': 'terminado', 'exito': resultado.get('exito')})
+        
+        elapsed_time = time.time() - start_time
+        return {
+            'status': 'success' if resultado.get('exito') else 'error',
+            'colegio_id': colegio_id,
+            'tiempo_ejecucion': elapsed_time,
+            'calidad_final': resultado.get('calidad', 0),
+            'slots_generados': resultado.get('estadisticas', {}).get('slots_generados', 0),
+            'horarios_generados': len(resultado.get('horarios', [])),
+            'exito': resultado.get('exito', False),
+        }
+    except Exception as e:
+        logging.error(f"Error en generación asíncrona de horarios: {str(e)}")
+        return {
+            'status': 'error',
+            'colegio_id': colegio_id,
+            'error': str(e),
+            'tiempo_ejecucion': time.time() - start_time
+        }
 
 
 def ejecutar_generacion_horarios(colegio_id: int, async_mode: bool = False, 
