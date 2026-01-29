@@ -11,9 +11,9 @@ import time
 import logging
 
 from horarios.models import Horario
-from horarios.validador_precondiciones import ValidadorPrecondiciones
-from horarios.generador_demand_first import GeneradorDemandFirst
-from horarios.sistema_reportes import SistemaReportes
+from horarios.domain.validators.validador_precondiciones import ValidadorPrecondiciones
+from horarios.application.services.generador_demand_first import GeneradorDemandFirst
+from horarios.infrastructure.adapters.sistema_reportes import SistemaReportes
 
 logger = logging.getLogger(__name__)
 

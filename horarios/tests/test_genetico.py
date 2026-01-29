@@ -11,7 +11,7 @@ from horarios.models import (
     Profesor, Materia, Curso, Aula, Grado, MateriaGrado, 
     MateriaProfesor, DisponibilidadProfesor, BloqueHorario, Horario
 )
-from horarios.genetico import (
+from horarios.application.services.genetico import (
     generar_horarios_genetico, cargar_datos, evaluar_fitness,
     inicializar_poblacion, Cromosoma, pre_validacion_dura
 )

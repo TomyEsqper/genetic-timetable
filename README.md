@@ -16,19 +16,12 @@ API potente y flexible para la **generación automática de horarios escolares**
 
 ## 📚 **DOCUMENTACIÓN COMPLETA**
 
-**Toda la documentación detallada se encuentra en la carpeta `/docs/`:**
+**Toda la documentación detallada se encuentra en la carpeta `/docs/` (si existiera). Actualmente toda la información relevante está centralizada aquí.**
 
-- **[📖 Documentación General](docs/README.md)** - Guía completa del proyecto
-- **[🚀 Inicio Rápido](docs/README_INICIO_RAPIDO.md)** - Configuración y uso inmediato
-- **[🏗️ Implementación Técnica](docs/IMPLEMENTACION_COMPLETA.md)** - Detalles de implementación
-- **[🔒 Sistema de Reglas Duras](docs/README_SISTEMA_REGLAS_DURAS.md)** - Reglas implementadas
-- **[🔧 Configuración de Relleno](docs/README_CONFIGURACION_RELLENO.md)** - Sistema de materias de relleno
-- **[🎉 Solución Final](docs/README_SOLUCION_FINAL.md)** - Estado actual del sistema
-- **[⚡ Optimizaciones](docs/README_OPTIMIZACIONES.md)** - Mejoras de rendimiento
-- **[🐛 Solución de Problemas](docs/SOLUCION_ERROR_DB.md)** - Troubleshooting
-- **[📅 Horarios Generados](docs/README_HORARIOS_FINALES.md)** - Resultados del sistema
+- **Documentación General** - Guía completa del proyecto
+- **Inicio Rápido** - Configuración y uso inmediato
+- **Implementación Técnica** - Detalles de implementación
 
-**[📋 Ver Índice Completo](docs/INDICE.md)**
 
 ---
 

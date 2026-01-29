@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 import time, json, sys
-from horarios.genetico_funcion import generar_horarios_genetico
+from horarios.application.services.genetico_funcion import generar_horarios_genetico
 
 class Command(BaseCommand):
 	help = "Ejecuta la generación de horarios (GA) con parámetros CLI (reproducible)."

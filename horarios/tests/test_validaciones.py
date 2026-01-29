@@ -10,7 +10,7 @@ from horarios.models import (
     Curso, Materia, Profesor, Aula, Horario, BloqueHorario,
     DisponibilidadProfesor, MateriaGrado, MateriaProfesor, Grado
 )
-from horarios.validadores import validar_antes_de_persistir, ValidadorHorarios
+from horarios.domain.validators.validadores import validar_antes_de_persistir, ValidadorHorarios
 
 
 class TestValidacionesHorarios(TestCase):

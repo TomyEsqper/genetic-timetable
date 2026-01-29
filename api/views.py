@@ -11,11 +11,11 @@ import numpy as np
 from typing import List, Dict, Any
 
 from horarios.models import Profesor, Materia, Curso, Horario, Aula, BloqueHorario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, ConfiguracionColegio
-from horarios.genetico_funcion import generar_horarios_genetico, validar_prerrequisitos_criticos
-from horarios.validadores import prevalidar_factibilidad_dataset, validar_antes_de_persistir, construir_semana_tipo_desde_bd
-from horarios.logging_estructurado import crear_logger_genetico
-from horarios.bloqueo_slots import crear_gestor_slots_bloqueados, integrar_slots_bloqueados_en_ga
-from horarios.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
+from horarios.application.services.genetico_funcion import generar_horarios_genetico, validar_prerrequisitos_criticos
+from horarios.domain.validators.validadores import prevalidar_factibilidad_dataset, validar_antes_de_persistir, construir_semana_tipo_desde_bd
+from horarios.infrastructure.utils.logging_estructurado import crear_logger_genetico
+from horarios.domain.services.bloqueo_slots import crear_gestor_slots_bloqueados, integrar_slots_bloqueados_en_ga
+from horarios.infrastructure.adapters.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
 from .serializers import (
     ProfesorSerializer,
     MateriaSerializer,
@@ -26,12 +26,12 @@ from .serializers import (
 
 # Nuevos imports para jobs
 try:
-	from celery.result import AsyncResult
-	from horarios.tasks import generar_horarios_async, CELERY_AVAILABLE
+    from celery.result import AsyncResult
+    from horarios.infrastructure.utils.tasks import generar_horarios_async, CELERY_AVAILABLE
 except Exception:
-	CELERY_AVAILABLE = False
-	generar_horarios_async = None
-	AsyncResult = None
+    CELERY_AVAILABLE = False
+    generar_horarios_async = None
+    AsyncResult = None
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class GenerarHorarioView(APIView):
                     "mensaje": "Validación previa fallida",
                     "errores_validacion": errores_validacion,
                     "tiempo_validacion_s": time.time() - inicio_tiempo
-                }, status=status.HTTP_400_BAD_REQUEST)
+                }, status=status.HTTP_409_CONFLICT)
  
             # 1b. PREVALIDACIÓN FACTIBILIDAD DATA-DRIVEN (oferta vs demanda)
             pre = prevalidar_factibilidad_dataset()

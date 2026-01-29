@@ -10,7 +10,7 @@ import time
 import logging
 
 from horarios.models import Horario
-from horarios.generador_corregido import GeneradorCorregido
+from horarios.application.services.generador_corregido import GeneradorCorregido
 
 logger = logging.getLogger(__name__)
 
