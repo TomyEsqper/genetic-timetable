@@ -33,7 +33,7 @@ python manage.py migrate
 echo "📊 Verificando datos..."
 if [ $(python manage.py shell -c "from horarios.models import Curso; print(Curso.objects.count())" 2>/dev/null) -eq 0 ]; then
     echo "📝 Cargando datos de ejemplo..."
-    python cargar_datos_ejemplo.py
+    python manage.py seed_data
 fi
 
 echo ""

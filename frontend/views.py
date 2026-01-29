@@ -133,21 +133,17 @@ def descargar_excel_por_profesor(request):
 def generar_horario(request):
     if request.method == 'POST':
         try:
-            # Obtener parámetros del formulario (sin valores predeterminados)
-            poblacion_size = int(request.POST.get('poblacion_size'))
-            generaciones = int(request.POST.get('generaciones'))
-            prob_cruce = float(request.POST.get('prob_cruce'))
-            prob_mutacion = float(request.POST.get('prob_mutacion'))
-            elite = int(request.POST.get('elite'))
-            paciencia = int(request.POST.get('paciencia'))
-            timeout_seg = int(request.POST.get('timeout_seg'))
-            workers = int(request.POST.get('workers'))
-            semilla = int(request.POST.get('semilla'))
-            
-            # Validar que todos los parámetros estén presentes
-            if not all([poblacion_size, generaciones, prob_cruce, prob_mutacion, elite, paciencia, timeout_seg, workers, semilla]):
-                messages.error(request, "❌ Todos los parámetros son obligatorios")
-                return redirect('dashboard')
+            # Obtener parámetros del formulario con valores predeterminados seguros
+            # Esto maneja tanto el formulario completo como los botones de "Generación Rápida"
+            poblacion_size = int(request.POST.get('poblacion_size', 80))
+            generaciones = int(request.POST.get('generaciones', 1000))
+            prob_cruce = float(request.POST.get('prob_cruce', 0.9))
+            prob_mutacion = float(request.POST.get('prob_mutacion', 0.05))
+            elite = int(request.POST.get('elite', 5))
+            timeout_seg = int(request.POST.get('timeout_seg', 600))
+            paciencia = int(request.POST.get('paciencia', 50))
+            workers = int(request.POST.get('workers', 1))
+            semilla = int(request.POST.get('semilla', 94601))
             
             # Ejecutar algoritmo Demand First (Reemplazando Genético)
             # Mapeo de parámetros

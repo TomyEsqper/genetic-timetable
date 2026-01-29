@@ -15,7 +15,6 @@ from horarios.application.services.generador_demand_first import GeneradorDemand
 from horarios.domain.validators.validador_precondiciones import ValidadorPrecondiciones
 from horarios.domain.validators.validadores import prevalidar_factibilidad_dataset, validar_antes_de_persistir, construir_semana_tipo_desde_bd
 from horarios.infrastructure.utils.logging_estructurado import crear_logger_genetico
-from horarios.domain.services.bloqueo_slots import crear_gestor_slots_bloqueados, integrar_slots_bloqueados_en_ga
 from horarios.infrastructure.adapters.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
 from .serializers import (
     ProfesorSerializer,

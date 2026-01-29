@@ -1,10 +1,9 @@
-# horarios/management/commands/diagnostico_horarios.py
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from horarios.models import Slot, BloqueHorario, DisponibilidadProfesor, ProfesorSlot, Curso, Materia, MateriaGrado, CursoMateriaRequerida
 
 class Command(BaseCommand):
-	help = "Materializa ProfesorSlot y sincroniza CursoMateriaRequerida"
+	help = "Materializa ProfesorSlot y sincroniza CursoMateriaRequerida (Tablas Auxiliares)"
 
 	def add_arguments(self, parser):
 		parser.add_argument('--sync-slots', action='store_true', help='Reconstruir tabla Slot a partir de BloqueHorario y dias de ConfiguracionColegio')
@@ -64,4 +63,4 @@ class Command(BaseCommand):
 				rows.append(CursoMateriaRequerida(curso_id=curso_id, materia_id=mg.materia_id, bloques_requeridos=bloques))
 		with transaction.atomic():
 			CursoMateriaRequerida.objects.all().delete()
-			CursoMateriaRequerida.objects.bulk_create(rows, batch_size=1000, ignore_conflicts=True) 
+			CursoMateriaRequerida.objects.bulk_create(rows, batch_size=1000, ignore_conflicts=True)

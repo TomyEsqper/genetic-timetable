@@ -319,26 +319,13 @@ class LoggerGenetico:
         self._escribir_log(log_data)
         self.logger.info(f"Evento: {evento} - {datos}")
 
-    # Atajos específicos para esta app
     def log_dimensiones(self, dimensiones: Dict[str, Any]):
         self.log_evento("dimensiones", dimensiones)
 
     def log_oferta_vs_demanda(self, tabla_y_resumen: Dict[str, Any]):
         # No incluir nombres; solo ids y métricas
         self.log_evento("oferta_vs_demanda", tabla_y_resumen)
-
-    def log_auditoria_mascaras(self, muestra: List[Dict[str, Any]]):
-        self.log_evento("auditoria_mascaras", {"muestra": muestra})
-
-    def log_individuo0_diferencias(self, diferencias: List[Dict[str, Any]]):
-        self.log_evento("individuo0_diferencias", {"diferencias": diferencias})
-
-    def log_repair_resumen(self, resumen: Dict[str, Any]):
-        self.log_evento("repair_resumen", resumen)
-
-    def log_top_slots_escasez(self, top_slots: List[Dict[str, Any]]):
-        self.log_evento("top_slots_escasez", {"top": top_slots})
-
+    
     def log_estado_final(self, estado: Dict[str, Any]):
         self.log_evento("estado_final", estado)
     
