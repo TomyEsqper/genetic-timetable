@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from horarios.genetico_funcion import generar_horarios_genetico
+from horarios.application.services.genetico_funcion import generar_horarios_genetico
 import time
 
 class Command(BaseCommand):

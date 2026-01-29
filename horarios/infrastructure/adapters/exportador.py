@@ -7,7 +7,7 @@ import io
 from datetime import datetime
 from django.http import HttpResponse
 from django.db.models import Prefetch
-from .models import Horario, Curso, Materia, Profesor, Aula, BloqueHorario
+from horarios.models import Horario, Curso, Materia, Profesor, Aula, BloqueHorario
 
 
 def exportar_horario_csv():

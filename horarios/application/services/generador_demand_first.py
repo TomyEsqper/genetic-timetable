@@ -11,13 +11,13 @@ import random
 import logging
 import time
 
-from .models import (
+from horarios.models import (
     Curso, Materia, Profesor, BloqueHorario, ConfiguracionColegio,
     DisponibilidadProfesor, MateriaProfesor, MateriaGrado,
     ConfiguracionCurso, MateriaRelleno, ReglaPedagogica
 )
-from .validador_reglas_duras import ValidadorReglasDuras
-from .validador_precondiciones import ValidadorPrecondiciones
+from horarios.domain.validators.validador_reglas_duras import ValidadorReglasDuras
+from horarios.domain.validators.validador_precondiciones import ValidadorPrecondiciones
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +143,7 @@ class GeneradorDemandFirst:
         
         slots = []
         cursos_completos = set()
-        profesores_ocupados = {}
+        profesores_ocupados = set() # Set of (profesor_id, dia, bloque)
         materias_cumplidas = defaultdict(int)
         
         # Procesar cada curso
@@ -163,7 +163,7 @@ class GeneradorDemandFirst:
             # Actualizar contadores
             for slot in slots_curso_total:
                 materias_cumplidas[(slot.curso_id, slot.materia_id)] += 1
-                profesores_ocupados[(slot.dia, slot.bloque)] = slot.profesor_id
+                profesores_ocupados.add((slot.profesor_id, slot.dia, slot.bloque))
             
             # Verificar completitud del curso
             slots_esperados = self._obtener_slots_objetivo(curso)
@@ -191,7 +191,7 @@ class GeneradorDemandFirst:
         logger.info(f"Construcción inicial: {len(slots)} slots, {len(cursos_completos)} cursos completos, calidad {calidad:.2f}")
         return estado
     
-    def _asignar_materias_obligatorias(self, curso: Curso, profesores_ocupados: Dict) -> List[SlotHorario]:
+    def _asignar_materias_obligatorias(self, curso: Curso, profesores_ocupados: set) -> List[SlotHorario]:
         """Asigna materias obligatorias a un curso"""
         slots = []
         
@@ -205,8 +205,7 @@ class GeneradorDemandFirst:
         slots_disponibles = []
         for dia in self.config_colegio['dias_clase']:
             for bloque in self.config_colegio['bloques_clase']:
-                if (dia, bloque) not in profesores_ocupados:
-                    slots_disponibles.append((dia, bloque))
+                slots_disponibles.append((dia, bloque))
         
         self.random.shuffle(slots_disponibles)
         
@@ -253,7 +252,7 @@ class GeneradorDemandFirst:
                     )
                     
                     slots.append(slot)
-                    profesores_ocupados[(dia, bloque)] = profesor_asignado.id
+                    profesores_ocupados.add((profesor_asignado.id, dia, bloque))
                     bloques_asignados += 1
                     
                     logger.debug(f"Asignado: {curso.nombre} - {materia.nombre} - {profesor_asignado.nombre} - {dia} bloque {bloque}")
@@ -266,7 +265,7 @@ class GeneradorDemandFirst:
         
         return slots
     
-    def _completar_con_relleno(self, curso: Curso, slots_existentes: List[SlotHorario], profesores_ocupados: Dict) -> List[SlotHorario]:
+    def _completar_con_relleno(self, curso: Curso, slots_existentes: List[SlotHorario], profesores_ocupados: set) -> List[SlotHorario]:
         """Completa curso con materias de relleno hasta 100%"""
         slots_objetivo = self._obtener_slots_objetivo(curso)
         slots_actuales = len(slots_existentes)
@@ -289,7 +288,8 @@ class GeneradorDemandFirst:
         slots_disponibles = []
         for dia in self.config_colegio['dias_clase']:
             for bloque in self.config_colegio['bloques_clase']:
-                if (dia, bloque) not in profesores_ocupados:
+                # Solo excluir slots ya ocupados por el curso
+                if not any(s.dia == dia and s.bloque == bloque for s in slots_existentes):
                     slots_disponibles.append((dia, bloque))
         
         self.random.shuffle(slots_disponibles)
@@ -322,7 +322,7 @@ class GeneradorDemandFirst:
                 )
                 
                 slots_relleno.append(slot)
-                profesores_ocupados[(dia, bloque)] = profesor_asignado.id
+                profesores_ocupados.add((profesor_asignado.id, dia, bloque))
                 bloques_asignados += 1
                 
                 logger.debug(f"Relleno asignado: {curso.nombre} - {materia_relleno.nombre} - {profesor_asignado.nombre} - {dia} bloque {bloque}")
@@ -332,14 +332,14 @@ class GeneradorDemandFirst:
         
         return slots_relleno
     
-    def _buscar_profesor_disponible(self, profesores_aptos: List[Profesor], dia: str, bloque: int, profesores_ocupados: Dict) -> Optional[Profesor]:
+    def _buscar_profesor_disponible(self, profesores_aptos: List[Profesor], dia: str, bloque: int, profesores_ocupados: set) -> Optional[Profesor]:
         """Busca un profesor disponible para un slot específico"""
         profesores_shuffled = profesores_aptos.copy()
         self.random.shuffle(profesores_shuffled)
         
         for profesor in profesores_shuffled:
             # Verificar que no esté ocupado en este slot
-            if (dia, bloque) in profesores_ocupados and profesores_ocupados[(dia, bloque)] == profesor.id:
+            if (profesor.id, dia, bloque) in profesores_ocupados:
                 continue
             
             # Verificar disponibilidad
@@ -540,7 +540,7 @@ class GeneradorDemandFirst:
                 })
                 
                 if slot.aula_id:
-                    from .models import Aula
+                    from horarios.models import Aula
                     aula = Aula.objects.get(id=slot.aula_id)
                     horario['aula'] = aula.nombre
                     

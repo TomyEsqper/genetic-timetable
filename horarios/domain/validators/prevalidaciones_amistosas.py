@@ -9,7 +9,7 @@ claras y sugerencias de solución.
 from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
 from django.db.models import Q, Count, Sum
-from .models import (
+from horarios.models import (
     Profesor, Materia, Curso, Aula, BloqueHorario, 
     MateriaGrado, MateriaProfesor, DisponibilidadProfesor, ConfiguracionColegio
 )

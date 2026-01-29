@@ -21,14 +21,14 @@ from horarios.models import (
     MateriaProfesor, DisponibilidadProfesor, BloqueHorario, Horario,
     ConfiguracionColegio
 )
-from horarios.mascaras import precomputar_mascaras, validar_slot_con_mascaras
-from horarios.fitness_optimizado import (
+from horarios.domain.services.mascaras import precomputar_mascaras, validar_slot_con_mascaras
+from horarios.application.services.fitness_optimizado import (
     calcular_fitness_unificado, 
     ConfiguracionFitness,
     evaluar_calidad_solucion
 )
-from horarios.logging_estructurado import crear_logger_genetico
-from horarios.genetico_funcion import validar_prerrequisitos_criticos
+from horarios.infrastructure.utils.logging_estructurado import crear_logger_genetico
+from horarios.application.services.genetico_funcion import validar_prerrequisitos_criticos
 
 class TestMascarasOptimizadas(TestCase):
     """Tests para las máscaras booleanas precomputadas"""

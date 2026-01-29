@@ -8,7 +8,7 @@ Este módulo precomputa máscaras booleanas que permiten validaciones O(1) en lu
 import numpy as np
 from typing import Dict, List, Tuple, Set, Any
 from dataclasses import dataclass
-from .models import (
+from horarios.models import (
 	Profesor, Materia, Curso, Aula, BloqueHorario, 
 	MateriaGrado, MateriaProfesor, DisponibilidadProfesor, ConfiguracionColegio, Horario,
 	Slot, ProfesorSlot, CursoMateriaRequerida

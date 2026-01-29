@@ -503,7 +503,7 @@ class ValidadorPrecondiciones:
         checklist["disponibilidad_repartida"] = disponibilidad_repartida
         
         # Reglas pedagógicas activas configuradas
-        from .models import ReglaPedagogica
+        from horarios.models import ReglaPedagogica
         reglas_activas = ReglaPedagogica.objects.filter(activa=True).count()
         checklist["reglas_pedagogicas_configuradas"] = reglas_activas > 0
         

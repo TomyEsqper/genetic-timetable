@@ -9,8 +9,8 @@ restricción blanda para cursos y profesores específicos.
 import numpy as np
 from typing import Dict, List, Tuple, Any
 from dataclasses import dataclass
-from .mascaras import MascarasOptimizadas
-from .fitness_optimizado import calcular_fitness_unificado, ConfiguracionFitness
+from horarios.domain.services.mascaras import MascarasOptimizadas
+from horarios.application.services.fitness_optimizado import calcular_fitness_unificado, ConfiguracionFitness
 
 @dataclass
 class PenalizacionDetallada:
@@ -87,7 +87,7 @@ class ExplicadorPenalizaciones:
         cromosoma: Dict[Tuple[int, str, int], Tuple[int, int]]
     ) -> List[PenalizacionDetallada]:
         """Analiza penalizaciones específicas por curso"""
-        from .models import Curso
+        from horarios.models import Curso
         
         penalizaciones = []
         
@@ -119,7 +119,7 @@ class ExplicadorPenalizaciones:
         cromosoma: Dict[Tuple[int, str, int], Tuple[int, int]]
     ) -> List[PenalizacionDetallada]:
         """Analiza penalizaciones específicas por profesor"""
-        from .models import Profesor
+        from horarios.models import Profesor
         
         penalizaciones = []
         
@@ -244,8 +244,7 @@ class ExplicadorPenalizaciones:
     def _calcular_huecos_curso(
         self, 
         asignaciones: List[Dict]
-    ) -> Tuple[float, List[Dict]]
-    ):
+    ) -> Tuple[float, List[Dict]]:
         """Calcula huecos en el horario de un curso"""
         # Agrupar por día
         asignaciones_por_dia = {}
@@ -281,8 +280,7 @@ class ExplicadorPenalizaciones:
     def _calcular_primeras_ultimas_curso(
         self, 
         asignaciones: List[Dict]
-    ) -> Tuple[float, List[Dict]]
-    ):
+    ) -> Tuple[float, List[Dict]]:
         """Calcula penalización por bloques en primeras/últimas franjas"""
         umbral = self.config_fitness.umbral_primeras_ultimas
         bloques_primeras_ultimas = []
@@ -314,8 +312,7 @@ class ExplicadorPenalizaciones:
     def _calcular_balance_dia_curso(
         self, 
         asignaciones: List[Dict]
-    ) -> Tuple[float, Dict[str, int]]
-    :
+    ) -> Tuple[float, Dict[str, int]]:
         """Calcula balance de materias por día para un curso"""
         # Contar materias por día
         materias_por_dia = {}
@@ -336,10 +333,9 @@ class ExplicadorPenalizaciones:
         self, 
         curso: 'Curso', 
         asignaciones: List[Dict]
-    ) -> Tuple[float, Dict[str, Any]]
-    :
+    ) -> Tuple[float, Dict[str, Any]]:
         """Calcula desvío de bloques por semana requeridos"""
-        from .models import MateriaGrado
+        from horarios.models import MateriaGrado
         
         # Obtener bloques requeridos por materia
         bloques_requeridos = {}
@@ -377,8 +373,7 @@ class ExplicadorPenalizaciones:
     def _calcular_primeras_ultimas_profesor(
         self, 
         asignaciones: List[Dict]
-    ) -> Tuple[float, List[Dict]]
-    :
+    ) -> Tuple[float, List[Dict]]:
         """Calcula penalización por bloques en primeras/últimas franjas para un profesor"""
         umbral = self.config_fitness.umbral_primeras_ultimas
         bloques_primeras_ultimas = []
@@ -412,8 +407,7 @@ class ExplicadorPenalizaciones:
     def _calcular_balance_dia_profesor(
         self, 
         asignaciones: List[Dict]
-    ) -> Tuple[float, Dict[str, int]]
-    :
+    ) -> Tuple[float, Dict[str, int]]:
         """Calcula balance de carga por día para un profesor"""
         # Contar asignaciones por día
         asignaciones_por_dia = {}
@@ -433,8 +427,7 @@ class ExplicadorPenalizaciones:
     def _calcular_distribucion_equitativa_profesor(
         self, 
         asignaciones: List[Dict]
-    ) -> Tuple[float, Dict[str, Any]]
-    :
+    ) -> Tuple[float, Dict[str, Any]]:
         """Calcula penalización por distribución no equitativa de carga"""
         # Agrupar por día
         carga_por_dia = {}
@@ -560,7 +553,7 @@ def explicar_penalizaciones_curso(
             asignaciones_curso[(c_id, dia, bloque)] = (materia_id, profesor_id)
     
     # Calcular penalizaciones
-    from .models import Curso
+    from horarios.models import Curso
     curso = Curso.objects.get(id=curso_id)
     asignaciones = [
         {
@@ -599,7 +592,7 @@ def explicar_penalizaciones_profesor(
             asignaciones_profesor[(curso_id, dia, bloque)] = (materia_id, p_id)
     
     # Calcular penalizaciones
-    from .models import Profesor
+    from horarios.models import Profesor
     profesor = Profesor.objects.get(id=profesor_id)
     asignaciones = [
         {

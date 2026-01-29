@@ -707,7 +707,7 @@ def inicializar_poblacion_robusta(datos: DatosHorario, tamano_poblacion: int, fr
 
 	# Cargar máscaras data-driven para reducir dominio
 	try:
-		from .mascaras import precomputar_mascaras
+		from horarios.domain.services.mascaras import precomputar_mascaras
 		mascaras = precomputar_mascaras()
 	except Exception as e:
 		logger.warning(f"No se pudieron precomputar máscaras, continuando sin filtro duro: {e}")
@@ -1054,7 +1054,7 @@ def _calcular_bonificacion_completitud(cromosoma: Cromosoma, datos: DatosHorario
     return bonificacion
 
 # Importar validadores y reparador
-from .validadores import validar_antes_de_persistir
+from horarios.domain.validators.validadores import validar_antes_de_persistir
 
 def repair_individual_robusto(cromosoma: Cromosoma, datos: DatosHorario) -> Tuple[bool, Dict]:
     """
@@ -2348,9 +2348,24 @@ def generar_horarios_genetico(
             logger.error(f"Error en persistencia de horarios: {str(_e)}")
             total_creados = 0
         
+        # Determine status and message
+        es_valido = resultado.get('validacion_final', {}).get('es_valido')
+        status = 'ok' if es_valido else 'error'
+        
+        mensaje = resultado.get('mensaje')
+        if status == 'error' and not mensaje:
+            errores = resultado.get('validacion_final', {}).get('errores', [])
+            if errores:
+                primer_error = errores[0]
+                desc = primer_error.get('descripcion') if isinstance(primer_error, dict) else str(primer_error)
+                mensaje = f"Validación fallida: {desc} ({len(errores)} errores en total)"
+            else:
+                mensaje = "No se pudo encontrar una solución válida que cumpla todas las restricciones."
+
         # Adaptar claves legacy esperadas por algunos tests
         salida = {
-            'status': 'ok' if resultado.get('validacion_final', {}).get('es_valido') else 'error',
+            'status': status,
+            'mensaje': mensaje,
             'mejor_fitness_final': resultado.get('mejor_fitness', 0),
             'conflictos_finales': resultado.get('conflictos_finales', 0),
             'generaciones_completadas': resultado.get('generaciones_completadas', 0),
@@ -2626,7 +2641,7 @@ def _rellenar_deficits_bloques(cromosoma: Cromosoma, datos: DatosHorario) -> Non
         from horarios.models import MateriaGrado
         # Usar el grado del curso para buscar en MateriaGrado
         materias_curso = MateriaGrado.objects.filter(
-            grado__nombre=curso.grado.nombre
+            grado_id=curso.grado_id
         ).values_list('materia_id', flat=True)
         
         for materia_id in materias_curso:
@@ -2666,7 +2681,7 @@ def _rellenar_deficits_bloques(cromosoma: Cromosoma, datos: DatosHorario) -> Non
                     # Buscar una materia REAL del curso que no esté en su máximo de bloques
                     from horarios.models import MateriaGrado
                     materias_curso = MateriaGrado.objects.filter(
-                        grado__nombre=curso.grado.nombre
+                        grado_id=curso.grado_id
                     ).values_list('materia_id', flat=True)
                     
                     for materia_id in materias_curso:

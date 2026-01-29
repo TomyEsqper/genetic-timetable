@@ -8,9 +8,9 @@ from django.views.decorators.http import require_http_methods
 from xhtml2pdf import pisa
 from django.http import HttpResponse
 from horarios.models import Curso, Profesor, Aula, Horario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, BloqueHorario
-from horarios.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
-from horarios.genetico import generar_horarios_genetico
-from horarios.validadores import prevalidar_factibilidad_dataset
+from horarios.infrastructure.adapters.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
+from horarios.application.services.genetico import generar_horarios_genetico
+from horarios.domain.validators.validadores import prevalidar_factibilidad_dataset
 from glob import glob
 
 def get_dias_clase():

@@ -9,7 +9,7 @@ import json
 from typing import Dict, List, Tuple, Set, Optional
 from dataclasses import dataclass
 from django.core.cache import cache
-from .models import Horario, Curso, Materia, Profesor
+from horarios.models import Horario, Curso, Materia, Profesor
 
 @dataclass
 class SlotBloqueado:

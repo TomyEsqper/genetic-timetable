@@ -12,7 +12,8 @@ import logging
 from horarios.models import (
     Horario, Curso, Materia, Profesor, BloqueHorario,
     DisponibilidadProfesor, MateriaProfesor, MateriaGrado,
-    ConfiguracionCurso, MateriaRelleno, ReglaPedagogica
+    ConfiguracionCurso, MateriaRelleno, ReglaPedagogica,
+    ConfiguracionColegio
 )
 
 logger = logging.getLogger(__name__)
@@ -335,7 +336,6 @@ class ValidadorReglasDuras:
     
     def _validar_completitud_cursos(self, horarios_por_curso: Dict):
         """REGLA DURA: Cursos 100% llenos (0 huecos)"""
-        from .models import ConfiguracionColegio
         
         config_colegio = ConfiguracionColegio.objects.first()
         if config_colegio:
@@ -481,7 +481,6 @@ class ValidadorReglasDuras:
         }
         
         # Contar cursos completos
-        from .models import ConfiguracionColegio
         config_colegio = ConfiguracionColegio.objects.first()
         if config_colegio:
             dias_semana = len(config_colegio.dias_clase.split(','))

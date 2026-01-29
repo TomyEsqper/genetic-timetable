@@ -277,6 +277,19 @@ class Command(BaseCommand):
             factibilidad = resultado['factibilidad']
             self.stdout.write(f'   Problemas críticos: {factibilidad.estadisticas["problemas_criticos"]}')
 
+        if 'validacion_final' in resultado:
+            validacion = resultado['validacion_final']
+            if hasattr(validacion, 'es_valido') and not validacion.es_valido:
+                violaciones = getattr(validacion, 'violaciones', [])
+                self.stdout.write(self.style.ERROR(f'   Violaciones detectadas ({len(violaciones)}):'))
+                for violacion in violaciones[:10]:
+                    self.stdout.write(f'     - {violacion}')
+            elif isinstance(validacion, dict) and not validacion.get('es_valido'):
+                 errores = validacion.get('errores', [])
+                 self.stdout.write(self.style.ERROR(f'   Errores detectados ({len(errores)}):'))
+                 for error in errores[:10]:
+                     self.stdout.write(f'     - {error}')
+
     def _generar_reporte_final(self, options, resultado_generacion: dict):
         """Genera reporte final completo"""
         if not options['guardar_reporte']:

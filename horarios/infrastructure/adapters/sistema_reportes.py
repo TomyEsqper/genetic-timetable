@@ -524,7 +524,7 @@ class SistemaReportes:
     
     def _obtener_materias_obligatorias(self, curso: Curso) -> List:
         """Obtiene materias obligatorias de un curso"""
-        from .models import MateriaGrado
+        from horarios.models import MateriaGrado
         return list(MateriaGrado.objects.filter(
             grado=curso.grado,
             materia__es_relleno=False

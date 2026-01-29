@@ -561,7 +561,7 @@ class GeneradorCorregido:
                 })
                 
                 if asignacion.aula_id:
-                    from .models import Aula
+                    from horarios.models import Aula
                     aula = Aula.objects.get(id=asignacion.aula_id)
                     horario['aula'] = aula.nombre
                     

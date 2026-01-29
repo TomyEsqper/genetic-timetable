@@ -15,7 +15,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
 
 from .genetico_funcion import generar_horarios_genetico
-from .models import TrackerCorrida
+from horarios.models import TrackerCorrida
 from .fitness_optimizado import ConfiguracionFitness
 
 @dataclass

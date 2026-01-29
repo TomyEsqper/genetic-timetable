@@ -247,7 +247,7 @@ def _calcular_penalizacion_bloques_semana(
     """Calcula penalización normalizada por diferencia con bloques_por_semana reales.
     penalización = sum(|asignados-req|/max(1,req))
     """
-    from .models import MateriaGrado, Curso, CursoMateriaRequerida
+    from horarios.models import MateriaGrado, Curso, CursoMateriaRequerida
     # Mapear requeridos por (curso,materia)
     requeridos = {}
     cmr = list(CursoMateriaRequerida.objects.values_list('curso_id','materia_id','bloques_requeridos'))
