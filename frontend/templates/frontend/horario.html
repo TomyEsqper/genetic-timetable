@@ -69,11 +69,7 @@
                   id="slot-{{ dia }}-{{ bloque }}"
                   data-dia="{{ dia }}"
                   data-bloque="{{ bloque }}"
-                  class="slot-celda border-2 border-gray-200 rounded p-2 bg-gray-50 hover:bg-white transition-colors relative flex flex-col justify-center items-center gap-1"
-                  ondragover="allowDrop(event)"
-                  ondrop="drop(event)"
-                  ondragenter="dragEnter(event)"
-                  ondragleave="dragLeave(event)"
+                  class="slot-celda border-2 border-gray-200 rounded p-2 bg-gray-50 hover:bg-white transition-colors relative flex flex-col justify-center items-center gap-1 min-h-[60px]"
                 >
                   <!-- Aquí JS inyectará las clases -->
                 </div>
@@ -99,8 +95,24 @@
   <!-- Lógica Frontend -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      inicializarDragAndDrop();
       cargarHorarios();
     });
+
+    // Variables globales para el estado del Drag & Drop
+    let draggedItem = null;
+    let originSlot = null;
+
+    function inicializarDragAndDrop() {
+      // Asignar listeners a todos los slots (zonas de drop)
+      const slots = document.querySelectorAll('.slot-celda');
+      slots.forEach(slot => {
+        slot.addEventListener('dragover', handleDragOver);
+        slot.addEventListener('drop', handleDrop);
+        slot.addEventListener('dragenter', handleDragEnter);
+        slot.addEventListener('dragleave', handleDragLeave);
+      });
+    }
 
     async function cargarHorarios() {
       const { objId, objTipo, apiBaseUrl } = CONFIG;
@@ -141,99 +153,121 @@
 
     function crearTarjetaClase(h) {
       const div = document.createElement('div');
-      div.className = 'draggable-item w-full h-full bg-blue-100 border border-blue-300 rounded p-2 text-xs shadow-sm select-none';
-      div.draggable = true;
+      div.className = 'draggable-item w-full h-full bg-blue-100 border border-blue-300 rounded p-2 text-xs shadow-sm select-none cursor-grab active:cursor-grabbing';
+      
+      // Importante: setAttribute explícito
+      div.setAttribute('draggable', 'true');
       div.id = `class-${h.id}`;
       
-      // Guardar metadata en el elemento para facilitar lógica futura
+      // Guardar metadata
       div.dataset.id = h.id;
       div.dataset.materia = h.materia;
       div.dataset.profesor = h.profesor;
       div.dataset.aula = h.aula;
 
       div.innerHTML = `
-        <div class="font-bold text-blue-900 text-center">${h.materia}</div>
-        <div class="text-gray-600 text-center truncate">${h.profesor}</div>
-        <div class="text-gray-500 text-center text-[10px]">${h.aula}</div>
-        <div class="text-gray-400 text-center text-[9px] mt-1">${h.curso || ''}</div>
+        <div class="font-bold text-blue-900 text-center pointer-events-none">${h.materia}</div>
+        <div class="text-gray-600 text-center truncate pointer-events-none">${h.profesor}</div>
+        <div class="text-gray-500 text-center text-[10px] pointer-events-none">${h.aula}</div>
+        <div class="text-gray-400 text-center text-[9px] mt-1 pointer-events-none">${h.curso || ''}</div>
       `;
 
-      div.addEventListener('dragstart', dragStart);
+      // Asignar listener directamente
+      div.addEventListener('dragstart', handleDragStart);
+      div.addEventListener('dragend', handleDragEnd); // Para limpieza
+      
       return div;
     }
 
-    // --- Drag & Drop Logic ---
+    // --- Manejadores de Eventos (Handlers) ---
 
-    let draggedItem = null;
-    let originSlot = null;
-
-    function dragStart(ev) {
-      draggedItem = ev.currentTarget; // El elemento div.draggable-item
+    function handleDragStart(ev) {
+      draggedItem = ev.target; // El elemento que se arrastra
       originSlot = draggedItem.parentElement;
       
       ev.dataTransfer.effectAllowed = 'move';
       ev.dataTransfer.setData('text/plain', draggedItem.id);
       
-      // Estilo visual al arrastrar
-      setTimeout(() => draggedItem.classList.add('opacity-50'), 0);
+      // Estilo visual: retrasar para que no desaparezca inmediatamente bajo el cursor
+      setTimeout(() => {
+        draggedItem.classList.add('opacity-50', 'scale-95');
+      }, 0);
+      
+      console.log('Drag start:', draggedItem.id);
     }
 
-    function allowDrop(ev) {
-      ev.preventDefault(); // Necesario para permitir el drop
+    function handleDragEnd(ev) {
+      if (draggedItem) {
+        draggedItem.classList.remove('opacity-50', 'scale-95');
+      }
+      // Limpiar clases de drop en todos los slots por seguridad
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      draggedItem = null;
     }
 
-    function dragEnter(ev) {
+    function handleDragOver(ev) {
+      // Necesario para permitir el drop
+      ev.preventDefault(); 
+      ev.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleDragEnter(ev) {
       ev.preventDefault();
+      // Asegurarse de marcar el slot, no un hijo
       const slot = ev.target.closest('.slot-celda');
       if (slot) {
         slot.classList.add('drag-over');
       }
     }
 
-    function dragLeave(ev) {
+    function handleDragLeave(ev) {
       const slot = ev.target.closest('.slot-celda');
+      // Solo quitar si salimos del slot hacia afuera, no hacia un hijo
+      // Pero 'dragleave' se dispara al entrar en un hijo. 
+      // Simplificación visual: limpiar siempre y confiar en dragEnter del hijo si fuera necesario, 
+      // o mejor: usar CSS :hover para efectos simples si JS es complejo.
+      // Aquí lo quitamos, si vuelve a entrar se añade.
       if (slot) {
         slot.classList.remove('drag-over');
       }
     }
 
-    function drop(ev) {
+    function handleDrop(ev) {
       ev.preventDefault();
       
-      // Restaurar opacidad
-      if (draggedItem) draggedItem.classList.remove('opacity-50');
-
-      // Identificar slot destino
       const targetSlot = ev.target.closest('.slot-celda');
       
-      // Limpiar estilo hover
+      // Limpieza visual
+      if (targetSlot) targetSlot.classList.remove('drag-over');
       document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
 
       if (!targetSlot || !draggedItem) return;
 
-      // Si soltamos en el mismo lugar, no hacer nada
+      // Evitar drop en el mismo origen
       if (targetSlot === originSlot) return;
+
+      console.log(`Intentando mover ${draggedItem.id} a slot ${targetSlot.id}`);
 
       // LÓGICA DE INTERCAMBIO (SWAP)
       const existingItem = targetSlot.querySelector('.draggable-item');
 
       if (existingItem) {
-        // Caso: Destino ocupado -> Intercambio
-        // Mover el existente al origen
+        // Swap: Mover existente a origen, arrastrado a destino
         originSlot.appendChild(existingItem);
-        // Mover el arrastrado al destino
         targetSlot.appendChild(draggedItem);
-        
-        console.log(`Swap: ${draggedItem.id} <-> ${existingItem.id}`);
       } else {
-        // Caso: Destino vacío -> Movimiento simple
+        // Move simple
         targetSlot.appendChild(draggedItem);
-        
-        console.log(`Move: ${draggedItem.id} -> ${targetSlot.id}`);
       }
 
-      // TODO: Aquí se llamaría a la API para persistir el cambio
-      // actualizarHorarioApi(draggedItem.dataset.id, targetSlot.dataset.dia, targetSlot.dataset.bloque);
+      // Animación visual de éxito (opcional)
+      targetSlot.animate([
+        { transform: 'scale(1.05)' },
+        { transform: 'scale(1)' }
+      ], { duration: 200 });
+
+      // TODO: Notificar API
+      // notificarCambio(draggedItem.dataset.id, targetSlot.dataset.dia, targetSlot.dataset.bloque);
     }
   </script>
 </body>
