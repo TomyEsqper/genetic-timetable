@@ -66,7 +66,7 @@ Si aún no has subido tu código a GitHub:
 
 **En el Servidor AWS (Ubuntu):**
 ```bash
-git clone https://github.com/TU_USUARIO_GITHUB/genetic-timetable.git
+git clone https://github.com/TomyEsqper/genetic-timetable.git
 cd genetic-timetable
 ```
 
