@@ -1,87 +1,91 @@
-# Guía de Despliegue en AWS (EC2 + Docker)
+# 🚀 Guía Maestra de Despliegue: Genetic Timetable
 
-Esta guía está personalizada para tu servidor actual.
-
-## Estado Actual
-*   **IP Pública:** `52.14.216.149`
-*   **Llave:** `Generador.pem`
-*   **Usuario:** `ubuntu`
+Esta es la guía definitiva para actualizar tu proyecto. Sigue estos pasos **cada vez que hagas cambios**.
 
 ---
 
-### ✅ Paso 1: Conexión (Ya dominado)
-Si se te cierra la terminal, vuelve a entrar con:
-```powershell
-ssh -i "Generador.pem" ubuntu@52.14.216.149
-```
+## 💻 PARTE 1: En tu PC (Local)
 
-### ✅ Paso 2: Memoria Swap (Listo)
-*   Si al correr los comandos te salió `Text file busy` o `Device or resource busy`, **¡Es buena noticia!** Significa que ya está activa y protegida. Tu servidor no se bloqueará.
+**Objetivo:** Empaquetar tu código nuevo y subirlo a la nube (Docker Hub + GitHub).
 
----
-
-### ⏳ Paso 3: Instalar Docker (LO QUE SIGUE)
-Copia y pega este bloque completo en tu terminal negra de Ubuntu. Instalará todo el motor de contenedores:
-
-```bash
-# 1. Agregar llave oficial de Docker
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
-# 2. Agregar repositorio
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# 3. Instalar Docker Engine
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# 4. Dar permisos a tu usuario (CRÍTICO)
-sudo usermod -aG docker $USER
-```
-
-� **¡ALTO AQUÍ!**
-Una vez termine de correr el bloque de arriba, **tienes que salir y volver a entrar** para que los permisos funcionen.
-1.  Escribe `exit` en la terminal negra.
-2.  Vuelve a conectarte con el comando del Paso 1.
-3.  Prueba que funcione escribiendo: `docker ps` (Si no sale error, ¡ganaste!).
-
----
-
-### ⏳ Paso 4: Subir tu código
-Necesitamos llevar tu código de tu PC al servidor. La mejor forma es GitHub.
-
-**En tu PC (PowerShell):**
-Si aún no has subido tu código a GitHub:
-1.  Crea un repositorio en GitHub.com llamado `genetic-timetable`.
-2.  Ejecuta en tu carpeta del proyecto:
+1.  **Guarda tus cambios** en Visual Studio Code.
+2.  **Construir y Subir Imágenes a Docker Hub**
+    *   Abre una terminal **PowerShell** en la carpeta del proyecto.
+    *   Ejecuta el script automático:
     ```powershell
-    git remote add origin https://github.com/TU_USUARIO_GITHUB/genetic-timetable.git
-    git branch -M main
-    git push -u origin main
+    ./scripts/deploy_hub.ps1
+    ```
+    *(Este script compila todo y lo sube a la nube para que tu servidor AWS no tenga que esforzarse).*
+
+3.  **Subir cambios de configuración a GitHub**
+    *   Si modificaste archivos como `docker-compose.prod.yml`, `settings.py` o `.env`:
+    ```powershell
+    git add .
+    git commit -m "Actualización: describir cambios"
+    git push origin main
     ```
 
-**En el Servidor AWS (Ubuntu):**
-```bash
-git clone https://github.com/TomyEsqper/genetic-timetable.git
-cd genetic-timetable
-```
+---
+
+## ☁️ PARTE 2: En tu Servidor AWS (Remoto)
+
+**Objetivo:** Descargar lo nuevo y reiniciar.
+
+1.  **Conectarse al Servidor**
+    *   Abre una terminal nueva (PowerShell o CMD).
+    *   Usa tu llave (asegúrate de estar en la carpeta donde la guardaste):
+    ```powershell
+    ssh -i "Generador.pem" ubuntu@52.14.216.149
+    ```
+
+2.  **Actualizar Código Base**
+    ```bash
+    cd genetic-timetable
+    git pull origin main
+    ```
+    *(Si dice "Already up to date", es normal si solo cambiaste código Python y no configuración).*
+
+3.  **Descargar las Imágenes Nuevas (Lo pesado)**
+    ```bash
+    docker compose -f docker-compose.prod.yml pull
+    ```
+
+4.  **Reiniciar los Contenedores**
+    ```bash
+    docker compose -f docker-compose.prod.yml up -d
+    ```
 
 ---
 
-### ⏳ Paso 5: Desplegar en Producción
-Una vez tengas la carpeta `genetic-timetable` en el servidor:
+## 🛠️ PARTE 3: Mantenimiento (Solo si es necesario)
 
+Ejecuta estos comandos en el servidor AWS **solo cuando la situación lo pida**:
+
+### 1. Si cambiaste modelos de base de datos (Tablas, Campos)
+Si agregaste tablas o campos nuevos, necesitas migrar:
 ```bash
-# Levantar todo (Web, Base de datos, Nginx)
-docker compose -f docker-compose.prod.yml up -d --build
-
-# Configurar base de datos y estáticos
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
-docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --no-input
 ```
 
-¡Y listo! Tu web estará en: `http://52.14.216.149`
+### 2. Si la web se ve "fea" o cambiaste CSS/JS
+Si los estilos no cargan, recopílalos de nuevo:
+```bash
+docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
+```
+
+### 3. Si necesitas crear un Administrador
+Para entrar al panel `/admin`:
+```bash
+docker compose -f docker-compose.prod.yml exec web python manage.py createsuperuser
+```
+
+### 4. Ver si hay errores (Logs)
+Si la web da Error 500, mira qué pasa en tiempo real:
+```bash
+# Ver logs del servidor web
+docker compose -f docker-compose.prod.yml logs -f web
+
+# Ver logs de Nginx (conexiones)
+docker compose -f docker-compose.prod.yml logs -f nginx
+```
+*(Presiona `Ctrl + C` para salir de los logs)*

@@ -96,7 +96,7 @@ def generar_horarios_async(self, colegio_id: int, params: Optional[Dict[str, Any
     
     try:
         # Estado: en-cola -> corriendo
-        if CELERY_AVAILABLE and hasattr(self, 'update_state'):
+        if CELERY_AVAILABLE and hasattr(self, 'update_state') and self.request.id:
             self.update_state(state='STARTED', meta={'status': 'corriendo'})
         
         # Ejecutar Generador
@@ -114,7 +114,7 @@ def generar_horarios_async(self, colegio_id: int, params: Optional[Dict[str, Any
                 resultado['exito'] = False
                 resultado['error_persistencia'] = str(e)
 
-        if CELERY_AVAILABLE and hasattr(self, 'update_state'):
+        if CELERY_AVAILABLE and hasattr(self, 'update_state') and self.request.id:
             self.update_state(state='SUCCESS', meta={'status': 'terminado', 'exito': resultado.get('exito')})
         
         elapsed_time = time.time() - start_time
@@ -165,9 +165,14 @@ def ejecutar_generacion_horarios(colegio_id: int, async_mode: bool = False,
         except Exception as e:
             logging.error(f"Error conectando con broker Celery: {e}. Ejecutando síncronamente.")
             # Fallback a síncrono
+            if CELERY_AVAILABLE:
+                return generar_horarios_async(colegio_id, params)
             return generar_horarios_async(None, colegio_id, params)
     else:
         # Ejecutar de forma síncrona
         if async_mode and not CELERY_AVAILABLE:
             logging.warning("Celery no está disponible. Ejecutando de forma síncrona.")
+        
+        if CELERY_AVAILABLE:
+            return generar_horarios_async(colegio_id, params)
         return generar_horarios_async(None, colegio_id, params)
