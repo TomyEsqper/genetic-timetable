@@ -274,8 +274,15 @@ class ValidadorReglasDuras:
                         continue
                 
                 # Verificar diferencias
+                from horarios.models import CursoMateriaRequerida
                 for mg in materias_obligatorias:
-                    bloques_requeridos = mg.materia.bloques_por_semana
+                    # Intentar obtener requerimiento específico por curso
+                    req = CursoMateriaRequerida.objects.filter(curso=curso, materia=mg.materia).first()
+                    if req:
+                        bloques_requeridos = req.bloques_requeridos
+                    else:
+                        bloques_requeridos = mg.materia.bloques_por_semana
+                        
                     bloques_actuales = bloques_asignados.get(mg.materia.id, 0)
                     diferencia = bloques_actuales - bloques_requeridos
                     

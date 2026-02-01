@@ -14,7 +14,7 @@ import time
 from horarios.models import (
     Curso, Materia, Profesor, BloqueHorario, ConfiguracionColegio,
     DisponibilidadProfesor, MateriaProfesor, MateriaGrado,
-    ConfiguracionCurso, MateriaRelleno, ReglaPedagogica
+    ConfiguracionCurso, MateriaRelleno, ReglaPedagogica, CursoMateriaRequerida
 )
 from horarios.domain.validators.validador_reglas_duras import ValidadorReglasDuras
 from horarios.domain.validators.validador_precondiciones import ValidadorPrecondiciones
@@ -195,9 +195,9 @@ class GeneradorDemandFirst:
         """Asigna materias obligatorias a un curso"""
         slots = []
         
-        # Obtener materias obligatorias del curso
-        materias_obligatorias = MateriaGrado.objects.filter(
-            grado=curso.grado,
+        # Obtener requerimientos específicos del curso (CursoMateriaRequerida)
+        requerimientos = CursoMateriaRequerida.objects.filter(
+            curso=curso,
             materia__es_relleno=False
         ).select_related('materia')
         
@@ -210,9 +210,9 @@ class GeneradorDemandFirst:
         self.random.shuffle(slots_disponibles)
         
         # Asignar cada materia obligatoria
-        for mg in materias_obligatorias:
-            materia = mg.materia
-            bloques_requeridos = materia.bloques_por_semana
+        for req in requerimientos:
+            materia = req.materia
+            bloques_requeridos = req.bloques_requeridos
             
             # Obtener profesores aptos
             profesores_aptos = list(Profesor.objects.filter(materiaprofesor__materia=materia))

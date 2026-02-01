@@ -18,6 +18,9 @@ urlpatterns = [
     # Endpoint de estado del sistema
     path('estado-sistema/', views.EstadoSistemaView.as_view(), name='api_estado_sistema'),
 
+    # Motor de cálculo (Solver)
+    path('engine/solve/', views.SolverView.as_view(), name='api_solver'),
+
     # Jobs async
     path('jobs/generar-horario/', views.JobsGenerarHorarioView.as_view(), name='api_jobs_generar_horario'),
     path('jobs/estado/<str:task_id>/', views.JobsEstadoView.as_view(), name='api_jobs_estado'),

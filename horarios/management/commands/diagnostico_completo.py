@@ -33,8 +33,11 @@ class Command(BaseCommand):
         
         # 5. Análisis de factibilidad global
         self.analizar_factibilidad_global()
+
+        # 6. Análisis de factibilidad por materia
+        self.analizar_factibilidad_por_materia()
         
-        # 6. Sugerencias de mejora
+        # 7. Sugerencias de mejora
         self.sugerir_mejoras()
         
         if options["csv"]:
@@ -202,6 +205,62 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(f"   ❌ Error al analizar factibilidad: {e}")
 
+    def analizar_factibilidad_por_materia(self):
+        """Analiza la factibilidad detallada por materia (demanda vs capacidad docente)."""
+        self.stdout.write("\n📊 ANÁLISIS DE FACTIBILIDAD POR MATERIA:")
+        
+        try:
+            from collections import defaultdict
+            from horarios.models import MateriaGrado, MateriaProfesor, DisponibilidadProfesor
+            
+            # 1. Calcular DEMANDA por materia
+            demanda = defaultdict(int)
+            cursos = Curso.objects.all()
+            
+            for curso in cursos:
+                materias_grado = MateriaGrado.objects.filter(grado=curso.grado).select_related('materia')
+                for mg in materias_grado:
+                    demanda[mg.materia.id] += mg.materia.bloques_por_semana
+            
+            # 2. Calcular CAPACIDAD por materia
+            capacidad = defaultdict(int)
+            profes_por_materia = defaultdict(set)
+            for mp in MateriaProfesor.objects.all():
+                profes_por_materia[mp.materia.id].add(mp.profesor.id)
+            
+            slots_por_profe = defaultdict(int)
+            for disp in DisponibilidadProfesor.objects.all():
+                slots = disp.bloque_fin - disp.bloque_inicio + 1
+                slots_por_profe[disp.profesor.id] += slots
+            
+            for materia_id, profe_ids in profes_por_materia.items():
+                for pid in profe_ids:
+                    capacidad[materia_id] += slots_por_profe[pid]
+            
+            # 3. Reportar
+            materias = Materia.objects.all()
+            problemas = 0
+            
+            for m in materias:
+                d = demanda.get(m.id, 0)
+                c = capacidad.get(m.id, 0)
+                
+                if d > 0:
+                    estado = "✅" if c >= d else "❌"
+                    if c < d:
+                        problemas += 1
+                        self.stdout.write(f"   {estado} {m.nombre:20s} Demanda: {d:3d} | Capacidad: {c:3d} | Déficit: {d-c}")
+                    elif c < d * 1.2:
+                         self.stdout.write(f"   ⚠️ {m.nombre:20s} Demanda: {d:3d} | Capacidad: {c:3d} | Margen ajustado")
+            
+            if problemas == 0:
+                 self.stdout.write("   ✅ Todas las materias tienen suficiente capacidad docente")
+            else:
+                 self.stdout.write(f"   ❌ Se encontraron {problemas} materias con déficit de docentes")
+
+        except Exception as e:
+            self.stdout.write(f"   ❌ Error al analizar factibilidad por materia: {e}")
+
     def sugerir_mejoras(self):
         """Sugiere mejoras para el sistema."""
         self.stdout.write("\n💡 SUGERENCIAS DE MEJORA:")
@@ -230,7 +289,7 @@ class Command(BaseCommand):
             
             self.stdout.write("\n   🚀 Para probar el sistema:")
             self.stdout.write("      - python manage.py test_generacion --iteraciones 2")
-            self.stdout.write("      - python manage.py diagnostico_horarios")
+            self.stdout.write("      - python manage.py sync_aux_tables")
             
         except Exception as e:
             self.stdout.write(f"   ❌ Error al generar sugerencias: {e}")

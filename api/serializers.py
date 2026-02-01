@@ -38,3 +38,33 @@ class HorarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Horario
         fields = ['id', 'curso', 'materia', 'profesor', 'aula', 'dia', 'bloque']
+
+
+# Serializadores de entrada para el Motor de Cálculo (Solver)
+class InputDisponibilidadSerializer(serializers.Serializer):
+    dia = serializers.CharField()
+    bloque_inicio = serializers.IntegerField()
+    bloque_fin = serializers.IntegerField()
+
+class InputProfesorSerializer(serializers.Serializer):
+    id_externo = serializers.CharField(required=False)
+    nombre = serializers.CharField()
+    disponibilidad = InputDisponibilidadSerializer(many=True, required=False)
+    materias_capaces = serializers.ListField(child=serializers.CharField(), required=False)
+
+class InputMateriaSerializer(serializers.Serializer):
+    id_externo = serializers.CharField(required=False)
+    nombre = serializers.CharField()
+    aula_especial = serializers.BooleanField(default=False)
+
+class InputCursoSerializer(serializers.Serializer):
+    id_externo = serializers.CharField(required=False)
+    nombre = serializers.CharField()
+    grado = serializers.CharField()
+    plan_estudios = serializers.DictField(child=serializers.IntegerField())
+
+class SolverInputSerializer(serializers.Serializer):
+    configuracion = serializers.DictField()
+    profesores = InputProfesorSerializer(many=True)
+    materias = InputMateriaSerializer(many=True)
+    cursos = InputCursoSerializer(many=True)

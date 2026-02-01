@@ -1,8 +1,9 @@
 from django.shortcuts import render
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
+from django.db import transaction
 from datetime import datetime
 import logging
 import time
@@ -16,12 +17,14 @@ from horarios.domain.validators.validador_precondiciones import ValidadorPrecond
 from horarios.domain.validators.validadores import prevalidar_factibilidad_dataset, validar_antes_de_persistir, construir_semana_tipo_desde_bd
 from horarios.infrastructure.utils.logging_estructurado import crear_logger_genetico
 from horarios.infrastructure.adapters.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
+from horarios.infrastructure.utils.serialization import make_json_serializable
 from .serializers import (
     ProfesorSerializer,
     MateriaSerializer,
     CursoSerializer,
     HorarioSerializer,
     AulaSerializer,
+    SolverInputSerializer,
 )
 
 # Nuevos imports para jobs
@@ -77,7 +80,7 @@ class GenerarHorarioView(APIView):
                     "status": "error",
                     "mensaje": "Validación previa fallida",
                     "errores_validacion": [p.descripcion for p in resultado_factibilidad.problemas],
-                    "reporte": resultado_factibilidad.reporte_detallado,
+                    "reporte": make_json_serializable(resultado_factibilidad.reporte_detallado),
                     "tiempo_validacion_s": time.time() - inicio_tiempo
                 }, status=status.HTTP_409_CONFLICT)
  
@@ -120,7 +123,7 @@ class GenerarHorarioView(APIView):
                 return Response({
                     "status": "error",
                     "mensaje": "No se pudo generar una solución válida",
-                    "errores": resultado.get('validacion_final', {}),
+                    "errores": make_json_serializable(resultado.get('validacion_final', {})),
                     "tiempo_total_s": round(tiempo_total, 2),
                     "semilla": semilla,
                     "configuracion_usada": parametros,
@@ -156,8 +159,8 @@ class GenerarHorarioView(APIView):
                 return Response({
                     "status": "error",
                     "mensaje": "Horarios generados no pasan validación final",
-                    "errores": [e.__dict__ for e in validacion.errores],
-                    "advertencias": [a.__dict__ for a in validacion.advertencias],
+                    "errores": make_json_serializable(validacion.errores),
+                    "advertencias": make_json_serializable(validacion.advertencias),
                     "log_path": logger_struct.archivo_log,
                 }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -660,3 +663,151 @@ class ExportProfesorView(APIView):
         if formato == 'csv':
             return exportar_horario_por_profesor_csv()
         return Response({'status':'error','mensaje':'formato no soportado'}, status=400)
+
+class SolverView(APIView):
+    """
+    Motor de Cálculo Puro:
+    Recibe un snapshot completo del problema (JSON), lo carga, resuelve y devuelve el resultado.
+    Ideal para integración server-to-server.
+    """
+    permission_classes = [AllowAny]
+    def post(self, request):
+        serializer = SolverInputSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        data = serializer.validated_data
+        try:
+            with transaction.atomic():
+                self._limpiar_base_de_datos()
+                mapeo_materias = {}
+                mapeo_profesores = {}
+                conf = data.get('configuracion', {})
+                dias = conf.get('dias_clase', 'lunes,martes,miércoles,jueves,viernes').lower()
+                ConfiguracionColegio.objects.create(
+                    dias_clase=dias,
+                    bloques_por_dia=conf.get('bloques_por_dia', 6),
+                    duracion_bloque=conf.get('duracion_bloque', 60),
+                    jornada=conf.get('jornada', 'mañana')
+                )
+                self._generar_bloques_y_slots(dias, conf.get('bloques_por_dia', 6))
+                for m_data in data['materias']:
+                    materia = Materia.objects.create(
+                        nombre=m_data['nombre'],
+                        bloques_por_semana=0,
+                        requiere_aula_especial=m_data.get('aula_especial', False)
+                    )
+                    mapeo_materias[m_data['nombre']] = materia
+                for p_data in data['profesores']:
+                    profesor = Profesor.objects.create(nombre=p_data['nombre'])
+                    mapeo_profesores[p_data['nombre']] = profesor
+                    disponibilidad = p_data.get('disponibilidad', [])
+                    if disponibilidad:
+                        for disp in disponibilidad:
+                            DisponibilidadProfesor.objects.create(
+                                profesor=profesor,
+                                dia=disp['dia'].lower(),
+                                bloque_inicio=disp['bloque_inicio'],
+                                bloque_fin=disp['bloque_fin']
+                            )
+                    else:
+                        # Si no se especifica disponibilidad, asumimos disponibilidad total
+                        dias_list = [d.strip() for d in dias.split(',')]
+                        bloques_dia = conf.get('bloques_por_dia', 6)
+                        for dia in dias_list:
+                            DisponibilidadProfesor.objects.create(
+                                profesor=profesor,
+                                dia=dia,
+                                bloque_inicio=1,
+                                bloque_fin=bloques_dia
+                            )
+                    if 'materias_capaces' in p_data:
+                        for mat_nombre in p_data['materias_capaces']:
+                            if mat_nombre in mapeo_materias:
+                                MateriaProfesor.objects.create(
+                                    profesor=profesor,
+                                    materia=mapeo_materias[mat_nombre]
+                                )
+                from horarios.models import Grado, MateriaGrado, CursoMateriaRequerida, ConfiguracionCurso
+                for c_data in data['cursos']:
+                    grado_nombre = c_data['grado']
+                    grado, _ = Grado.objects.get_or_create(nombre=grado_nombre)
+                    curso = Curso.objects.create(nombre=c_data['nombre'], grado=grado)
+                    Aula.objects.create(nombre=f"Salón {curso.nombre}", capacidad=40, tipo='general')
+                    plan = c_data.get('plan_estudios', {})
+                    total_bloques_plan = sum(plan.values())
+                    # Ajustar automáticamente la configuración del curso para que coincida con la carga real
+                    ConfiguracionCurso.objects.create(
+                        curso=curso,
+                        slots_objetivo=total_bloques_plan, # Usar el campo correcto del modelo
+                        permite_relleno=False # Desactivar relleno si no se usa
+                    )
+                    for mat_nombre, bloques in plan.items():
+                        if mat_nombre in mapeo_materias:
+                            materia = mapeo_materias[mat_nombre]
+                            MateriaGrado.objects.get_or_create(grado=grado, materia=materia)
+                            CursoMateriaRequerida.objects.create(
+                                curso=curso,
+                                materia=materia,
+                                bloques_requeridos=bloques
+                            )
+                # Materializar datos antes de invocar al generador
+                from horarios.management.commands.sync_aux_tables import Command as SyncCommand
+                sync_cmd = SyncCommand()
+                # 1. Crear Slots físicos
+                sync_cmd._sync_slots()
+                # 2. Materializar disponibilidad docente (crucial para _profesor_disponible)
+                sync_cmd._materialize_profesor_slot()
+                # 3. Materializar requerimientos por curso (YA LO HICIMOS MANUALMENTE, NO SOBREESCRIBIR)
+                # sync_cmd._sync_curso_materia_requerida()
+
+                generador = GeneradorDemandFirst()
+                resultado = generador.generar_horarios()
+                if resultado['exito']:
+                    horarios = Horario.objects.all()
+                    serializer_out = HorarioSerializer(horarios, many=True)
+                    return Response({
+                        "status": "success",
+                        "metadata": {
+                            "total_horarios": len(horarios),
+                            "fitness": resultado.get('fitness_score', 0)
+                        },
+                        "horarios": serializer_out.data
+                    })
+                else:
+                    return Response({
+                        "status": "failure",
+                        "mensaje": "No se pudo encontrar una solución válida",
+                        "detalles": make_json_serializable(resultado)
+                    }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except Exception as e:
+            logger.exception("Error en SolverView")
+            return Response({"status": "error", "mensaje": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def _limpiar_base_de_datos(self):
+        from horarios.models import MateriaRelleno, CursoMateriaRequerida, ProfesorSlot, Slot
+        Horario.objects.all().delete()
+        MateriaRelleno.objects.all().delete()
+        CursoMateriaRequerida.objects.all().delete()
+        ProfesorSlot.objects.all().delete()
+        Slot.objects.all().delete()
+        MateriaProfesor.objects.all().delete()
+        MateriaGrado.objects.all().delete()
+        DisponibilidadProfesor.objects.all().delete()
+        Curso.objects.all().delete()
+        Aula.objects.all().delete()
+        from horarios.models import Grado
+        Grado.objects.all().delete()
+        Profesor.objects.all().delete()
+        Materia.objects.all().delete()
+        BloqueHorario.objects.all().delete()
+        ConfiguracionColegio.objects.all().delete()
+
+    def _generar_bloques_y_slots(self, dias_str, bloques_por_dia):
+        from datetime import time
+        for i in range(1, bloques_por_dia + 1):
+            BloqueHorario.objects.create(
+                numero=i,
+                hora_inicio=time(7 + i, 0),
+                hora_fin=time(7 + i, 50),
+                tipo='clase'
+            )
