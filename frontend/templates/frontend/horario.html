@@ -141,21 +141,28 @@
 
       horarios.forEach(h => {
         // Buscar celda correspondiente: slot-lunes-1
-        const celdaId = `slot-${h.dia.toLowerCase()}-${h.bloque}`;
+        // Aseguramos que el día venga limpio y en minúsculas
+        const diaLimpio = h.dia.trim().toLowerCase();
+        const celdaId = `slot-${diaLimpio}-${h.bloque}`;
         const celda = document.getElementById(celdaId);
         
         if (celda) {
           const card = crearTarjetaClase(h);
           celda.appendChild(card);
+        } else {
+          console.warn(`No se encontró celda para: ${celdaId}`, h);
         }
       });
     }
 
     function crearTarjetaClase(h) {
       const div = document.createElement('div');
-      div.className = 'draggable-item w-full h-full bg-blue-100 border border-blue-300 rounded p-2 text-xs shadow-sm select-none cursor-grab active:cursor-grabbing';
+      // Añadimos z-10 y cursor-move explícito
+      div.className = 'draggable-item w-full h-full bg-blue-100 border border-blue-300 rounded p-2 text-xs shadow-sm select-none z-10 relative hover:shadow-md transition-shadow';
+      div.style.cursor = 'move'; // Forzar cursor
       
-      // Importante: setAttribute explícito
+      // Doble aseguramiento de draggable
+      div.draggable = true;
       div.setAttribute('draggable', 'true');
       div.id = `class-${h.id}`;
       
@@ -165,16 +172,17 @@
       div.dataset.profesor = h.profesor;
       div.dataset.aula = h.aula;
 
+      // Eliminamos pointer-events-none para asegurar que el click se detecte en cualquier parte
       div.innerHTML = `
-        <div class="font-bold text-blue-900 text-center pointer-events-none">${h.materia}</div>
-        <div class="text-gray-600 text-center truncate pointer-events-none">${h.profesor}</div>
-        <div class="text-gray-500 text-center text-[10px] pointer-events-none">${h.aula}</div>
-        <div class="text-gray-400 text-center text-[9px] mt-1 pointer-events-none">${h.curso || ''}</div>
+        <div class="font-bold text-blue-900 text-center">${h.materia}</div>
+        <div class="text-gray-600 text-center truncate">${h.profesor}</div>
+        <div class="text-gray-500 text-center text-[10px]">${h.aula}</div>
+        <div class="text-gray-400 text-center text-[9px] mt-1">${h.curso || ''}</div>
       `;
 
       // Asignar listener directamente
       div.addEventListener('dragstart', handleDragStart);
-      div.addEventListener('dragend', handleDragEnd); // Para limpieza
+      div.addEventListener('dragend', handleDragEnd);
       
       return div;
     }
@@ -182,18 +190,24 @@
     // --- Manejadores de Eventos (Handlers) ---
 
     function handleDragStart(ev) {
-      draggedItem = ev.target; // El elemento que se arrastra
+      // Usar closest para asegurar que capturamos el contenedor draggable incluso si se clickea en el texto
+      draggedItem = ev.target.closest('.draggable-item');
+      if (!draggedItem) return;
+
       originSlot = draggedItem.parentElement;
       
       ev.dataTransfer.effectAllowed = 'move';
       ev.dataTransfer.setData('text/plain', draggedItem.id);
       
-      // Estilo visual: retrasar para que no desaparezca inmediatamente bajo el cursor
-      setTimeout(() => {
-        draggedItem.classList.add('opacity-50', 'scale-95');
-      }, 0);
+      // Añadir una imagen fantasma personalizada si es necesario (opcional)
+      // ev.dataTransfer.setDragImage(draggedItem, 0, 0);
+
+      console.log('Drag start iniciado:', draggedItem.id);
       
-      console.log('Drag start:', draggedItem.id);
+      // Retraso seguro para efecto visual
+      requestAnimationFrame(() => {
+        if (draggedItem) draggedItem.classList.add('opacity-50');
+      });
     }
 
     function handleDragEnd(ev) {
