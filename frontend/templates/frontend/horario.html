@@ -3,129 +3,238 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Panel del Coordinador</title>
+  <title>{{ titulo }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .draggable-item {
+      cursor: move;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .draggable-item:active {
+      cursor: grabbing;
+      opacity: 0.8;
+      transform: scale(1.05);
+    }
+    .drag-over {
+      background-color: #e0f2fe !important; /* bg-blue-100 */
+      border: 2px dashed #0284c7 !important; /* border-sky-600 */
+    }
+  </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans">
 
   <div class="max-w-7xl mx-auto p-6">
-    <!-- Logo y encabezado -->
+    <!-- Header -->
     <div class="flex items-center justify-between mb-8">
       <div class="flex items-center gap-4">
-        <img src="{% static 'img/phidias.png' %}" alt="Logo Colegio" class="w-12 h-12">
-        <h1 class="text-3xl font-bold text-blue-900">Colegio San Ignacio</h1>
+        <img src="{% static 'img/phidias.png' %}" alt="Logo" class="w-12 h-12">
+        <div>
+          <h1 class="text-3xl font-bold text-blue-900">{{ titulo }}</h1>
+          <p class="text-sm text-gray-500">Vista dinámica vía API • Arrastra para mover bloques</p>
+        </div>
       </div>
-      <p class="text-sm text-gray-500 italic">Panel de coordinación académica</p>
+      <a href="{% url 'dashboard' %}" class="text-blue-600 hover:underline">← Volver al Dashboard</a>
     </div>
 
-    <!-- Mensajes -->
-    {% if messages %}
-      <div class="mb-4">
-        {% for message in messages %}
-          <div class="bg-green-100 text-green-800 px-4 py-2 rounded shadow">{{ message }}</div>
-        {% endfor %}
-      </div>
-    {% endif %}
-
-    <!-- Tarjetas de navegación -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-      <!-- Cursos -->
-      <div class="bg-white rounded-lg shadow-md p-4">
-        <h2 class="text-xl font-semibold mb-2 text-blue-700">📘 Ver horario por curso</h2>
-        <ul class="space-y-1">
-          {% for curso in cursos %}
-            <li>
-              <a href="{% url 'horario_curso' curso.id %}" class="text-blue-600 hover:underline hover:font-medium">
-                {{ curso.nombre }}
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
-      <!-- Profesores -->
-      <div class="bg-white rounded-lg shadow-md p-4">
-        <h2 class="text-xl font-semibold mb-2 text-green-700">👨‍🏫 Ver horario por profesor</h2>
-        <ul class="space-y-1">
-          {% for profesor in profesores %}
-            <li>
-              <a href="{% url 'horario_profesor' profesor.id %}" class="text-green-600 hover:underline hover:font-medium">
-                {{ profesor.nombre }}
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
-      <!-- Aulas -->
-      <div class="bg-white rounded-lg shadow-md p-4">
-        <h2 class="text-xl font-semibold mb-2 text-purple-700">🏫 Ver horario por aula</h2>
-        <ul class="space-y-1">
-          {% for aula in aulas %}
-            <li>
-              <a href="{% url 'horario_aula' aula.id %}" class="text-purple-600 hover:underline hover:font-medium">
-                {{ aula.nombre }}
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
+    <!-- Contenedor de Estado/Carga -->
+    <div id="loading-indicator" class="text-center py-8">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900"></div>
+      <p class="mt-2 text-gray-600">Cargando horarios desde API...</p>
     </div>
 
-    <!-- Horario en cuadrícula (dinámico por BloqueHorario) -->
-    <div class="bg-white rounded-lg shadow-md p-6 mt-8">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-bold text-gray-800">Horario semanal</h2>
-        <span class="text-sm text-gray-500">Vista dinámica basada en la base de datos</span>
-      </div>
-
-      {% if horarios %}
-        <div class="overflow-x-auto">
-          <div class="min-w-[900px]">
-            <!-- Encabezados de días -->
-            <div class="grid grid-cols-6 gap-2 mb-2">
-              <div></div>
-              {% for dia in dias %}
-                <div class="text-center font-semibold text-blue-800">{{ dia }}</div>
-              {% endfor %}
-            </div>
-
-            <!-- Filas por bloque real (hora_inicio - hora_fin) -->
-            {% for bloque in bloques %}
-              <div class="grid grid-cols-6 gap-2 items-center mb-2">
-                <div class="text-center font-medium text-gray-700">
-                  {{ bloque.hora_inicio }} - {{ bloque.hora_fin }}
-                </div>
-
-                {% for dia in dias %}
-                  <div class="border border-gray-300 p-2 text-sm text-gray-800 bg-gray-100">
-                    {% for h in horarios %}
-                      {% if h.dia == dia and h.bloque.id == bloque.id %}
-                        <div class="font-semibold">{{ h.materia.nombre|default:h.materia }}</div>
-                        <div class="text-sm text-gray-600">{{ h.profesor.nombre|default:h.profesor }}</div>
-                        <div class="text-sm text-gray-600">{{ h.aula.nombre|default:h.aula }}</div>
-                      {% endif %}
-                    {% endfor %}
-                  </div>
-                {% endfor %}
-              </div>
+    <!-- Grid de Horario -->
+    <div id="horario-container" class="bg-white rounded-lg shadow-md p-6 hidden">
+      <div class="overflow-x-auto">
+        <div class="min-w-[900px]">
+          
+          <!-- Headers Días -->
+          <div class="grid grid-cols-6 gap-2 mb-2">
+            <div class="text-center text-gray-400 font-bold">HORA</div>
+            {% for dia in dias %}
+              <div class="text-center font-bold text-blue-800 uppercase">{{ dia }}</div>
             {% endfor %}
           </div>
+
+          <!-- Filas Bloques -->
+          {% for bloque in bloques %}
+            <div class="grid grid-cols-6 gap-2 mb-2 min-h-[100px]">
+              <!-- Columna Hora -->
+              <div class="flex items-center justify-center bg-gray-50 text-gray-700 font-bold rounded">
+                Bloque {{ bloque }}
+              </div>
+
+              <!-- Celdas por Día -->
+              {% for dia in dias %}
+                <div 
+                  id="slot-{{ dia }}-{{ bloque }}"
+                  data-dia="{{ dia }}"
+                  data-bloque="{{ bloque }}"
+                  class="slot-celda border-2 border-gray-200 rounded p-2 bg-gray-50 hover:bg-white transition-colors relative flex flex-col justify-center items-center gap-1"
+                  ondragover="allowDrop(event)"
+                  ondrop="drop(event)"
+                  ondragenter="dragEnter(event)"
+                  ondragleave="dragLeave(event)"
+                >
+                  <!-- Aquí JS inyectará las clases -->
+                </div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+
         </div>
-      {% else %}
-        <p class="text-gray-600">No hay horarios disponibles para mostrar.</p>
-      {% endif %}
+      </div>
     </div>
 
-    <!-- Acciones -->
-    <div class="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
-      <a href="{% url 'descargar_excel' %}" class="bg-green-600 text-white px-6 py-3 rounded-lg shadow hover:bg-green-700 transition">📥 Descargar Excel</a>
-      <form action="{% url 'generar_horario' %}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres generar un nuevo horario? Esto reemplazará el actual.')">
-        {% csrf_token %}
-        <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-lg shadow hover:bg-red-700 transition">⚙️ Generar nuevo horario</button>
-      </form>
-      <a href="{% url 'validar_datos' %}" class="bg-yellow-500 text-white px-6 py-3 rounded-lg shadow hover:bg-yellow-600 transition">🧪 Validar datos antes de generar</a>
-      <a href="{% url 'dashboard' %}" class="bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600 transition">📊 Ver resumen del sistema</a>
-    </div>
   </div>
 
+  <!-- Configuración Inyectada -->
+  <script>
+    const CONFIG = {
+      objId: "{{ obj_id }}",
+      objTipo: "{{ obj_tipo }}",
+      apiBaseUrl: "/frontend/ajax/horario/" // Usamos el endpoint AJAX existente que devuelve JSON limpio
+    };
+  </script>
+
+  <!-- Lógica Frontend -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      cargarHorarios();
+    });
+
+    async function cargarHorarios() {
+      const { objId, objTipo, apiBaseUrl } = CONFIG;
+      const url = `${apiBaseUrl}?tipo=${objTipo}&id=${objId}`;
+      
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Error en la API');
+        const data = await response.json();
+        
+        renderHorario(data.horarios);
+        document.getElementById('loading-indicator').classList.add('hidden');
+        document.getElementById('horario-container').classList.remove('hidden');
+        
+      } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('loading-indicator').innerHTML = `
+          <p class="text-red-600">Error cargando datos: ${error.message}</p>
+        `;
+      }
+    }
+
+    function renderHorario(horarios) {
+      // Limpiar celdas por si acaso (aunque inician vacías)
+      document.querySelectorAll('.slot-celda').forEach(el => el.innerHTML = '');
+
+      horarios.forEach(h => {
+        // Buscar celda correspondiente: slot-lunes-1
+        const celdaId = `slot-${h.dia.toLowerCase()}-${h.bloque}`;
+        const celda = document.getElementById(celdaId);
+        
+        if (celda) {
+          const card = crearTarjetaClase(h);
+          celda.appendChild(card);
+        }
+      });
+    }
+
+    function crearTarjetaClase(h) {
+      const div = document.createElement('div');
+      div.className = 'draggable-item w-full h-full bg-blue-100 border border-blue-300 rounded p-2 text-xs shadow-sm select-none';
+      div.draggable = true;
+      div.id = `class-${h.id}`;
+      
+      // Guardar metadata en el elemento para facilitar lógica futura
+      div.dataset.id = h.id;
+      div.dataset.materia = h.materia;
+      div.dataset.profesor = h.profesor;
+      div.dataset.aula = h.aula;
+
+      div.innerHTML = `
+        <div class="font-bold text-blue-900 text-center">${h.materia}</div>
+        <div class="text-gray-600 text-center truncate">${h.profesor}</div>
+        <div class="text-gray-500 text-center text-[10px]">${h.aula}</div>
+        <div class="text-gray-400 text-center text-[9px] mt-1">${h.curso || ''}</div>
+      `;
+
+      div.addEventListener('dragstart', dragStart);
+      return div;
+    }
+
+    // --- Drag & Drop Logic ---
+
+    let draggedItem = null;
+    let originSlot = null;
+
+    function dragStart(ev) {
+      draggedItem = ev.currentTarget; // El elemento div.draggable-item
+      originSlot = draggedItem.parentElement;
+      
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', draggedItem.id);
+      
+      // Estilo visual al arrastrar
+      setTimeout(() => draggedItem.classList.add('opacity-50'), 0);
+    }
+
+    function allowDrop(ev) {
+      ev.preventDefault(); // Necesario para permitir el drop
+    }
+
+    function dragEnter(ev) {
+      ev.preventDefault();
+      const slot = ev.target.closest('.slot-celda');
+      if (slot) {
+        slot.classList.add('drag-over');
+      }
+    }
+
+    function dragLeave(ev) {
+      const slot = ev.target.closest('.slot-celda');
+      if (slot) {
+        slot.classList.remove('drag-over');
+      }
+    }
+
+    function drop(ev) {
+      ev.preventDefault();
+      
+      // Restaurar opacidad
+      if (draggedItem) draggedItem.classList.remove('opacity-50');
+
+      // Identificar slot destino
+      const targetSlot = ev.target.closest('.slot-celda');
+      
+      // Limpiar estilo hover
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+      if (!targetSlot || !draggedItem) return;
+
+      // Si soltamos en el mismo lugar, no hacer nada
+      if (targetSlot === originSlot) return;
+
+      // LÓGICA DE INTERCAMBIO (SWAP)
+      const existingItem = targetSlot.querySelector('.draggable-item');
+
+      if (existingItem) {
+        // Caso: Destino ocupado -> Intercambio
+        // Mover el existente al origen
+        originSlot.appendChild(existingItem);
+        // Mover el arrastrado al destino
+        targetSlot.appendChild(draggedItem);
+        
+        console.log(`Swap: ${draggedItem.id} <-> ${existingItem.id}`);
+      } else {
+        // Caso: Destino vacío -> Movimiento simple
+        targetSlot.appendChild(draggedItem);
+        
+        console.log(`Move: ${draggedItem.id} -> ${targetSlot.id}`);
+      }
+
+      // TODO: Aquí se llamaría a la API para persistir el cambio
+      // actualizarHorarioApi(draggedItem.dataset.id, targetSlot.dataset.dia, targetSlot.dataset.bloque);
+    }
+  </script>
 </body>
 </html>

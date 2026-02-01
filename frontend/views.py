@@ -53,40 +53,46 @@ def index(request):
 def horario_curso(request, curso_id):
     # Optimizar consulta con select_related para obtener datos relacionados
     curso = get_object_or_404(Curso.objects.select_related('grado', 'aula_fija'), id=curso_id)
-    horarios = Horario.objects.filter(curso=curso).select_related('materia', 'profesor', 'aula')
+    # horarios = Horario.objects.filter(curso=curso).select_related('materia', 'profesor', 'aula') # Desacoplado
     
     return render(request, 'frontend/horario.html', {
         'titulo': f"Horario del curso {curso.nombre}",
-        'horarios': horarios,
+        # 'horarios': horarios, # Ya no se pasa por contexto
         'dias': DIAS,
         'bloques': BLOQUES,
         'filtro': 'curso',
+        'obj_id': curso.id,
+        'obj_tipo': 'curso',
     })
 
 def horario_profesor(request, profesor_id):
     # Optimizar consulta con select_related
     profesor = get_object_or_404(Profesor, id=profesor_id)
-    horarios = Horario.objects.filter(profesor=profesor).select_related('curso', 'materia', 'aula')
+    # horarios = Horario.objects.filter(profesor=profesor).select_related('curso', 'materia', 'aula') # Desacoplado
     
     return render(request, 'frontend/horario.html', {
         'titulo': f"Horario del profesor {profesor.nombre}",
-        'horarios': horarios,
+        # 'horarios': horarios, # Ya no se pasa por contexto
         'dias': DIAS,
         'bloques': BLOQUES,
         'filtro': 'profesor',
+        'obj_id': profesor.id,
+        'obj_tipo': 'profesor',
     })
 
 def horario_aula(request, aula_id):
     # Optimizar consulta con select_related
     aula = get_object_or_404(Aula, id=aula_id)
-    horarios = Horario.objects.filter(aula=aula).select_related('curso', 'materia', 'profesor')
+    # horarios = Horario.objects.filter(aula=aula).select_related('curso', 'materia', 'profesor') # Desacoplado
     
     return render(request, 'frontend/horario.html', {
         'titulo': f"Horario del aula {aula.nombre}",
-        'horarios': horarios,
+        # 'horarios': horarios, # Ya no se pasa por contexto
         'dias': DIAS,
         'bloques': BLOQUES,
         'filtro': 'aula',
+        'obj_id': aula.id,
+        'obj_tipo': 'aula',
     })
 
 def validar_datos(request):
