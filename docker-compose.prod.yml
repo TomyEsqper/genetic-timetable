@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: gunicorn colegio.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/app
+    expose:
+      - 8000
+    environment:
+      - DJANGO_DEBUG=False
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_ENGINE=django.db.backends.sqlite3
+    depends_on:
+      - redis
+
+  celery:
+    build: .
+    command: celery -A colegio worker -l info
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_DEBUG=False
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_ENGINE=django.db.backends.sqlite3
+      - C_FORCE_ROOT=1
+    depends_on:
+      - redis
+      - web
+
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - .:/app
+    depends_on:
+      - web
+
+  redis:
+    image: redis:7-alpine
