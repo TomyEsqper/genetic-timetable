@@ -13,7 +13,7 @@ from horarios.models import (
     Horario, Curso, Materia, Profesor, BloqueHorario,
     DisponibilidadProfesor, MateriaProfesor, MateriaGrado,
     ConfiguracionCurso, MateriaRelleno, ReglaPedagogica,
-    ConfiguracionColegio
+    ConfiguracionColegio, CursoMateriaRequerida
 )
 
 logger = logging.getLogger(__name__)
@@ -252,11 +252,26 @@ class ValidadorReglasDuras:
                 else:
                     curso = Curso.objects.get(nombre=curso_id)
                 
-                # Obtener materias obligatorias del curso
-                materias_obligatorias = MateriaGrado.objects.filter(
-                    grado=curso.grado,
+                # Obtener materias obligatorias (priorizando CursoMateriaRequerida)
+                expected_blocks = {}
+                
+                # 1. Intentar con CursoMateriaRequerida (configuración específica/Solver)
+                reqs = CursoMateriaRequerida.objects.filter(
+                    curso=curso, 
                     materia__es_relleno=False
-                )
+                ).select_related('materia')
+                
+                if reqs.exists():
+                    for req in reqs:
+                        expected_blocks[req.materia] = req.bloques_requeridos
+                else:
+                    # 2. Fallback a MateriaGrado (configuración global/Legacy)
+                    mgs = MateriaGrado.objects.filter(
+                        grado=curso.grado,
+                        materia__es_relleno=False
+                    ).select_related('materia')
+                    for mg in mgs:
+                        expected_blocks[mg.materia] = mg.materia.bloques_por_semana
                 
                 # Contar bloques asignados por materia
                 bloques_asignados = Counter()
@@ -274,24 +289,16 @@ class ValidadorReglasDuras:
                         continue
                 
                 # Verificar diferencias
-                from horarios.models import CursoMateriaRequerida
-                for mg in materias_obligatorias:
-                    # Intentar obtener requerimiento específico por curso
-                    req = CursoMateriaRequerida.objects.filter(curso=curso, materia=mg.materia).first()
-                    if req:
-                        bloques_requeridos = req.bloques_requeridos
-                    else:
-                        bloques_requeridos = mg.materia.bloques_por_semana
-                        
-                    bloques_actuales = bloques_asignados.get(mg.materia.id, 0)
+                for materia, bloques_requeridos in expected_blocks.items():
+                    bloques_actuales = bloques_asignados.get(materia.id, 0)
                     diferencia = bloques_actuales - bloques_requeridos
                     
                     if diferencia != 0:
                         self.violaciones.append(ViolacionRegla(
                             tipo="diferencia_materia_obligatoria",
-                            descripcion=f"Curso {curso.nombre}: {mg.materia.nombre} tiene diferencia {diferencia} (requiere {bloques_requeridos}, tiene {bloques_actuales})",
+                            descripcion=f"Curso {curso.nombre}: {materia.nombre} tiene diferencia {diferencia} (requiere {bloques_requeridos}, tiene {bloques_actuales})",
                             curso=curso.nombre,
-                            materia=mg.materia.nombre
+                            materia=materia.nombre
                         ))
                         
             except Curso.DoesNotExist:

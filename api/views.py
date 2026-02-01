@@ -15,7 +15,7 @@ from horarios.models import Profesor, Materia, Curso, Horario, Aula, BloqueHorar
 from horarios.application.services.generador_demand_first import GeneradorDemandFirst
 from horarios.domain.validators.validador_precondiciones import ValidadorPrecondiciones
 from horarios.domain.validators.validadores import prevalidar_factibilidad_dataset, validar_antes_de_persistir, construir_semana_tipo_desde_bd
-from horarios.infrastructure.utils.logging_estructurado import crear_logger_genetico
+from horarios.infrastructure.utils.logging_estructurado import crear_logger_estructurado
 from horarios.infrastructure.adapters.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
 from horarios.infrastructure.utils.serialization import make_json_serializable
 from .serializers import (
@@ -68,7 +68,7 @@ class GenerarHorarioView(APIView):
 
     def post(self, request):
         inicio_tiempo = time.time()
-        logger_struct = crear_logger_genetico()
+        logger_struct = crear_logger_estructurado()
         
         try:
             # 1. VALIDACIÓN PREVIA IMPRESCINDIBLE
@@ -233,28 +233,13 @@ class GenerarHorarioView(APIView):
 
     
     def _persistir_resultado_atomico(self, resultado):
-        """Persistencia rápida y atómica del resultado con inserción masiva optimizada usando staging HorarioDraft."""
+        """Persistencia rápida y atómica del resultado."""
         from django.db import transaction
-        from django.db import models
         from horarios.models import Horario
-        # Crear modelo runtime para draft si no existe migrado
-        class HorarioDraft(models.Model):
-            curso = models.ForeignKey('horarios.Curso', on_delete=models.CASCADE)
-            materia = models.ForeignKey('horarios.Materia', on_delete=models.CASCADE)
-            profesor = models.ForeignKey('horarios.Profesor', on_delete=models.CASCADE)
-            aula = models.ForeignKey('horarios.Aula', null=True, blank=True, on_delete=models.SET_NULL)
-            dia = models.CharField(max_length=15)
-            bloque = models.IntegerField()
-            class Meta:
-                app_label = 'horarios'
-                managed = False  # tabla temporal opcional
-                db_table = 'horarios_horario_draft'
+        
         try:
             with transaction.atomic():
-                # 1) Llenar draft
-                self._bulk_to_draft(HorarioDraft, resultado.get('horarios', []))
-                # 2) Validar (ya validado antes a nivel de objeto; aquí asumimos ok)
-                # 3) Promover por curso: borrar e insertar en lote
+                # Promover por curso: borrar e insertar en lote
                 cursos_afectados = set([h['curso_id'] for h in resultado.get('horarios', []) if 'curso_id' in h])
                 if cursos_afectados:
                     Horario.objects.filter(curso_id__in=cursos_afectados).delete()
@@ -268,27 +253,8 @@ class GenerarHorarioView(APIView):
                     return len(objetos)
                 return 0
         except Exception as e:
-            logger.error(f"Error en persistencia atómica (staging): {e}")
+            logger.error(f"Error en persistencia atómica: {e}")
             raise
-    
-    def _bulk_to_draft(self, DraftModel, horarios_list):
-        """Crea/limpia tabla draft e inserta en bulk (si tabla existe)."""
-        from django.db import connection
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute("CREATE TABLE IF NOT EXISTS horarios_horario_draft (id SERIAL PRIMARY KEY, curso_id INTEGER, materia_id INTEGER, profesor_id INTEGER, aula_id INTEGER NULL, dia VARCHAR(15), bloque INTEGER);")
-        except Exception:
-            pass
-        try:
-            # Limpia la tabla draft
-            DraftModel.objects.all().delete()
-            rows = [DraftModel(
-                curso_id=h['curso_id'], materia_id=h['materia_id'], profesor_id=h['profesor_id'],
-                aula_id=h.get('aula_id'), dia=h['dia'], bloque=h['bloque']
-            ) for h in horarios_list if all(k in h for k in ['curso_id','materia_id','profesor_id','dia','bloque'])]
-            DraftModel.objects.bulk_create(rows, batch_size=1000)
-        except Exception as e:
-            logger.warning(f"Fallo en staging draft: {e}")
 
     def _calcular_diffs(self, nuevos_horarios: List[Dict]) -> Dict[str, Any]:
         actuales = list(Horario.objects.all().values('curso_id','profesor_id','materia_id','dia','bloque'))
@@ -763,6 +729,19 @@ class SolverView(APIView):
                 generador = GeneradorDemandFirst()
                 resultado = generador.generar_horarios()
                 if resultado['exito']:
+                    # Persistir resultados en la base de datos
+                    objs = []
+                    for h in resultado.get('horarios', []):
+                         objs.append(Horario(
+                             curso_id=h['curso_id'],
+                             materia_id=h['materia_id'],
+                             profesor_id=h['profesor_id'],
+                             aula_id=h.get('aula_id'),
+                             dia=h['dia'],
+                             bloque=h['bloque']
+                         ))
+                    Horario.objects.bulk_create(objs)
+                    
                     horarios = Horario.objects.all()
                     serializer_out = HorarioSerializer(horarios, many=True)
                     return Response({

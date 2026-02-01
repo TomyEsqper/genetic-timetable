@@ -349,13 +349,23 @@ class GeneradorDemandFirst:
         return None
     
     def _profesor_disponible(self, profesor: Profesor, dia: str, bloque: int) -> bool:
-        """Verifica si un profesor está disponible en un día y bloque específico"""
-        return DisponibilidadProfesor.objects.filter(
-            profesor=profesor,
-            dia=dia,
-            bloque_inicio__lte=bloque,
-            bloque_fin__gte=bloque
-        ).exists()
+        """Verifica si un profesor está disponible en un día y bloque específico (usando cache)"""
+        if not hasattr(self, 'disponibilidad_cache'):
+            self._cargar_disponibilidad()
+        
+        return (dia, bloque) in self.disponibilidad_cache.get(profesor.id, set())
+
+    def _cargar_disponibilidad(self):
+        """Carga disponibilidad de todos los profesores en memoria para acceso O(1)"""
+        self.disponibilidad_cache = defaultdict(set)
+        # Optimización: traer solo los campos necesarios
+        disponibilidades = DisponibilidadProfesor.objects.values('profesor_id', 'dia', 'bloque_inicio', 'bloque_fin')
+        
+        for disp in disponibilidades:
+            prof_id = disp['profesor_id']
+            dia = disp['dia']
+            for bloque in range(disp['bloque_inicio'], disp['bloque_fin'] + 1):
+                self.disponibilidad_cache[prof_id].add((dia, bloque))
     
     def _obtener_slots_objetivo(self, curso: Curso) -> int:
         """Obtiene número objetivo de slots para un curso"""
@@ -428,12 +438,83 @@ class GeneradorDemandFirst:
         return estado_actual
     
     def _aplicar_operadores_mejora(self, estado: EstadoGeneracion) -> EstadoGeneracion:
-        """Aplica operadores de mejora al estado actual"""
-        # Por ahora, retorna el estado sin cambios
-        # Aquí se implementarían operadores como:
-        # - Intercambio de slots entre profesores
-        # - Reubicación de materias de relleno
-        # - Optimización de distribución semanal
+        """Aplica operadores de mejora al estado actual (Swap Intra-Curso)"""
+        import copy
+        
+        # Estrategia: Copia superficial de la lista y clonación solo de los elementos modificados
+        nuevos_slots = list(estado.slots)
+        
+        # 1. Selección de Curso
+        if not estado.cursos_completos:
+            return estado
+            
+        curso_id = self.random.choice(list(estado.cursos_completos))
+        indices = [i for i, s in enumerate(nuevos_slots) if s.curso_id == curso_id]
+        
+        if len(indices) < 2:
+            return estado
+            
+        # 2. Selección de Slots para Swap
+        idx1, idx2 = self.random.sample(indices, 2)
+        slot1_orig = nuevos_slots[idx1]
+        slot2_orig = nuevos_slots[idx2]
+        
+        # Clonamos los slots para no afectar el estado original
+        slot1 = copy.copy(slot1_orig)
+        slot2 = copy.copy(slot2_orig)
+        nuevos_slots[idx1] = slot1
+        nuevos_slots[idx2] = slot2
+        
+        # 3. Validar Factibilidad del Swap
+        dia1, bloque1 = slot1.dia, slot1.bloque
+        dia2, bloque2 = slot2.dia, slot2.bloque
+        prof1 = slot1.profesor_id
+        prof2 = slot2.profesor_id
+        
+        es_factible = False
+        
+        if prof1 == prof2:
+            es_factible = True
+        else:
+            # Disponibilidad horaria (usando cache)
+            p1_disp = (dia2, bloque2) in self.disponibilidad_cache.get(prof1, set())
+            p2_disp = (dia1, bloque1) in self.disponibilidad_cache.get(prof2, set())
+            
+            if p1_disp and p2_disp:
+                # Chequear choques con otros cursos
+                p1_ocupado = (prof1, dia2, bloque2) in estado.profesores_ocupados
+                p2_ocupado = (prof2, dia1, bloque1) in estado.profesores_ocupados
+                
+                if not p1_ocupado and not p2_ocupado:
+                    es_factible = True
+        
+        if es_factible:
+            # Aplicar Swap
+            slot1.dia, slot1.bloque = dia2, bloque2
+            slot2.dia, slot2.bloque = dia1, bloque1
+            
+            # Evaluar nueva calidad
+            nueva_calidad = self._calcular_calidad(nuevos_slots)
+            
+            if nueva_calidad > estado.calidad_actual:
+                # Éxito! Actualizar metadatos
+                nuevos_profesores_ocupados = estado.profesores_ocupados.copy()
+                
+                nuevos_profesores_ocupados.remove((prof1, dia1, bloque1))
+                nuevos_profesores_ocupados.remove((prof2, dia2, bloque2))
+                
+                nuevos_profesores_ocupados.add((prof1, dia2, bloque2))
+                nuevos_profesores_ocupados.add((prof2, dia1, bloque1))
+                
+                return EstadoGeneracion(
+                    slots=nuevos_slots,
+                    cursos_completos=estado.cursos_completos,
+                    profesores_ocupados=nuevos_profesores_ocupados,
+                    materias_cumplidas=estado.materias_cumplidas,
+                    calidad_actual=nueva_calidad,
+                    es_valido=True
+                )
+                
         return estado
     
     def _calcular_calidad(self, slots: List[SlotHorario]) -> float:

@@ -1,0 +1,112 @@
+{
+  "configuracion": {
+    "dias_clase": "lunes,martes,miércoles,jueves,viernes",
+    "bloques_por_dia": 7,
+    "duracion_bloque": 50,
+    "jornada": "mañana"
+  },
+  "materias": [
+    { "nombre": "Matemáticas" },
+    { "nombre": "Español" },
+    { "nombre": "Ciencias Naturales" },
+    { "nombre": "Ciencias Sociales" },
+    { "nombre": "Inglés" },
+    { "nombre": "Educación Física" },
+    { "nombre": "Artes" },
+    { "nombre": "Tecnología" },
+    { "nombre": "Ética" },
+    { "nombre": "Religión" }
+  ],
+  "profesores": [
+    {
+      "nombre": "Juan Pérez (Matemáticas)",
+      "materias_capaces": ["Matemáticas"],
+      "disponibilidad": [] 
+    },
+    {
+      "nombre": "Ana García (Español)",
+      "materias_capaces": ["Español"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Carlos López (Ciencias)",
+      "materias_capaces": ["Ciencias Naturales"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "María Rodríguez (Sociales)",
+      "materias_capaces": ["Ciencias Sociales", "Ética"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Pedro Martínez (Inglés)",
+      "materias_capaces": ["Inglés"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Luisa Fernández (EduFísica)",
+      "materias_capaces": ["Educación Física"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Sofía Ramírez (Artes/Tecnología)",
+      "materias_capaces": ["Artes", "Tecnología"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Padre Antonio (Religión)",
+      "materias_capaces": ["Religión"],
+      "disponibilidad": []
+    }
+  ],
+  "cursos": [
+    {
+      "nombre": "6A",
+      "grado": "6",
+      "plan_estudios": {
+        "Matemáticas": 5,
+        "Español": 5,
+        "Ciencias Naturales": 4,
+        "Ciencias Sociales": 4,
+        "Inglés": 3,
+        "Educación Física": 2,
+        "Artes": 2,
+        "Tecnología": 2,
+        "Ética": 1,
+        "Religión": 1
+      }
+    },
+    {
+      "nombre": "6B",
+      "grado": "6",
+      "plan_estudios": {
+        "Matemáticas": 5,
+        "Español": 5,
+        "Ciencias Naturales": 4,
+        "Ciencias Sociales": 4,
+        "Inglés": 3,
+        "Educación Física": 2,
+        "Artes": 2,
+        "Tecnología": 2,
+        "Ética": 1,
+        "Religión": 1
+      }
+    },
+    {
+      "nombre": "6C",
+      "grado": "6",
+      "plan_estudios": {
+        "Matemáticas": 5,
+        "Español": 5,
+        "Ciencias Naturales": 4,
+        "Ciencias Sociales": 4,
+        "Inglés": 3,
+        "Educación Física": 2,
+        "Artes": 2,
+        "Tecnología": 2,
+        "Ética": 1,
+        "Religión": 1
+      }
+    }
+  ]
+}
