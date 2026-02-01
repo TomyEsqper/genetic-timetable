@@ -18,8 +18,8 @@ services:
       - redis
 
   celery:
+    build: .
     image: ${DOCKER_HUB_USER:-genetic}/timetable-celery:latest
-    # build: .  <-- COMENTADO PARA QUE NO INTENTE CONSTRUIR
     command: celery -A colegio worker -l info
     volumes:
       - .:/app
