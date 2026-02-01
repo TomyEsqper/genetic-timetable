@@ -88,7 +88,7 @@
     const CONFIG = {
       objId: "{{ obj_id }}",
       objTipo: "{{ obj_tipo }}",
-      apiBaseUrl: "/frontend/ajax/horario/" // Usamos el endpoint AJAX existente que devuelve JSON limpio
+      apiBaseUrl: "{% url 'horario_ajax' %}" // Usamos el tag url de Django para asegurar la ruta correcta
     };
   </script>
 
@@ -159,7 +159,12 @@
       const div = document.createElement('div');
       // Añadimos z-10 y cursor-move explícito
       div.className = 'draggable-item w-full h-full bg-blue-100 border border-blue-300 rounded p-2 text-xs shadow-sm select-none z-10 relative hover:shadow-md transition-shadow';
-      div.style.cursor = 'move'; // Forzar cursor
+      
+      // Estilos en línea para máxima compatibilidad
+      div.style.cursor = 'move';
+      div.style.userSelect = 'none';
+      div.style.WebkitUserSelect = 'none'; // Safari/Chrome
+      div.style.touchAction = 'none'; // Mejorar respuesta táctil
       
       // Doble aseguramiento de draggable
       div.draggable = true;
@@ -172,12 +177,13 @@
       div.dataset.profesor = h.profesor;
       div.dataset.aula = h.aula;
 
-      // Eliminamos pointer-events-none para asegurar que el click se detecte en cualquier parte
+      // Reintroducimos pointer-events-none en los hijos para evitar que el texto capture el foco del mouse
+      // Esto fuerza a que el evento drag se dispare en el contenedor padre (div.draggable-item)
       div.innerHTML = `
-        <div class="font-bold text-blue-900 text-center">${h.materia}</div>
-        <div class="text-gray-600 text-center truncate">${h.profesor}</div>
-        <div class="text-gray-500 text-center text-[10px]">${h.aula}</div>
-        <div class="text-gray-400 text-center text-[9px] mt-1">${h.curso || ''}</div>
+        <div class="font-bold text-blue-900 text-center pointer-events-none">${h.materia}</div>
+        <div class="text-gray-600 text-center truncate pointer-events-none">${h.profesor}</div>
+        <div class="text-gray-500 text-center text-[10px] pointer-events-none">${h.aula}</div>
+        <div class="text-gray-400 text-center text-[9px] mt-1 pointer-events-none">${h.curso || ''}</div>
       `;
 
       // Asignar listener directamente
