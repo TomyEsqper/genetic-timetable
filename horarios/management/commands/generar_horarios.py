@@ -74,7 +74,16 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        """Maneja la ejecución del comando"""
+        """
+        Maneja la ejecución del comando.
+        
+        Flujo de Ejecución:
+        1. Validar Precondiciones: ¿Es matemáticamente posible generar el horario? (recursos suficientes).
+        2. Limpieza: Borrar horarios anteriores (si se solicita).
+        3. Generación: Ejecutar algoritmo Demand-First + Hill Climbing.
+        4. Persistencia: Guardar resultados en base de datos.
+        5. Reporte: Mostrar estadísticas finales.
+        """
         
         # Configurar logging
         if options['verbose']:

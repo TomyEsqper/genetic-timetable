@@ -61,7 +61,14 @@ class HorarioList(generics.ListAPIView):
 
 class GenerarHorarioView(APIView):
     """
-    Endpoint principal para generación de horarios con formato estándar de respuesta
+    Endpoint principal para generación de horarios con formato estándar de respuesta.
+    
+    Proceso:
+    1. Recibe parámetros de configuración (semilla, paciencia, iteraciones).
+    2. Ejecuta validaciones de precondiciones (Factibilidad matemática).
+    3. Lanza el algoritmo 'Demand-First + Hill Climbing'.
+    4. Persiste los resultados o devuelve preview.
+    
     POST /api/generar-horario/
     """
     permission_classes = [IsAuthenticated]

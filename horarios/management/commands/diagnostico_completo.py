@@ -10,6 +10,17 @@ from horarios.models import (
 )
 
 class Command(BaseCommand):
+    """
+    Herramienta de diagnóstico integral para el sistema de horarios.
+    Ejecuta una batería de análisis para detectar inconsistencias en los datos maestros
+    antes de intentar generar un horario.
+    
+    Checks:
+    1. Configuración básica (días, bloques).
+    2. Disponibilidad docente (cobertura vs demanda).
+    3. Integridad referencial (materias huérfanas, cursos vacíos).
+    4. Factibilidad matemática (slots necesarios vs slots disponibles).
+    """
     help = "🔍 Diagnóstico completo del sistema de horarios"
 
     def add_arguments(self, parser):

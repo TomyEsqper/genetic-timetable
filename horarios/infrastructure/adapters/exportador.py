@@ -74,10 +74,16 @@ def exportar_horario_csv():
 
 def exportar_horario_por_curso_csv():
     """
-    Exporta el horario organizado por curso en formato CSV.
+    Exporta el horario organizado por curso en formato CSV (Matriz Semanal).
+    
+    Formato Visual:
+    - Filas: Cada curso es una fila.
+    - Columnas: Lunes-B1, Lunes-B2... Viernes-B6.
+    
+    Ideal para impresión rápida o visualización compacta.
     
     Returns:
-        HttpResponse con el archivo CSV
+        HttpResponse con el archivo CSV adjunto.
     """
     # Obtener todos los cursos con sus horarios
     cursos = Curso.objects.select_related('grado').prefetch_related(

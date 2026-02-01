@@ -33,6 +33,11 @@ def validate_capacidad_aula(value):
         raise ValidationError('La capacidad no puede ser mayor a 200.')
 
 class ConfiguracionColegio(models.Model):
+    """
+    Configuración global del colegio.
+    Define la estructura básica del horario (días, bloques, duración).
+    Solo debería existir una instancia de este modelo.
+    """
     jornada = models.CharField(max_length=20, choices=[('mañana', 'Mañana'), ('tarde', 'Tarde'), ('completa', 'Completa')])
     bloques_por_dia = models.IntegerField(
         validators=[MinValueValidator(1, 'Debe tener al menos 1 bloque por día'), 
@@ -56,6 +61,10 @@ class ConfiguracionColegio(models.Model):
         return f"Jornada {self.jornada} - {self.bloques_por_dia} bloques/día"
 
 class Profesor(models.Model):
+    """
+    Representa a un docente de la institución.
+    Contiene información sobre su carga horaria máxima y capacidades.
+    """
     nombre = models.CharField(max_length=100, validators=[validate_nombre_profesor])
     
     # Nuevos campos para gestión de carga horaria
@@ -84,6 +93,10 @@ class Profesor(models.Model):
         return self.nombre
 
 class DisponibilidadProfesor(models.Model):
+    """
+    Define los bloques de tiempo en los que un profesor puede dictar clases.
+    Se usa para validar la asignación de horarios (Regla Dura).
+    """
     profesor = models.ForeignKey(Profesor, on_delete=models.CASCADE)
     dia = models.CharField(max_length=15, choices=[
             ('lunes','Lunes'), ('martes','Martes'), ('miércoles','Miércoles'),
@@ -110,6 +123,10 @@ class DisponibilidadProfesor(models.Model):
         return f"{self.profesor} - {self.dia} Bloques {self.bloque_inicio}-{self.bloque_fin}"
 
 class Materia(models.Model):
+    """
+    Asignatura o unidad curricular (ej. Matemáticas, Historia).
+    Define restricciones específicas como aulas especiales o bloques consecutivos.
+    """
     nombre = models.CharField(max_length=100, validators=[validate_nombre_materia])
     bloques_por_semana = models.IntegerField(validators=[validate_bloques_por_semana])
     jornada_preferida = models.CharField(max_length=20, choices=[
@@ -169,6 +186,10 @@ class Materia(models.Model):
         return f"{self.nombre}{tipo_str}"
 
 class MateriaProfesor(models.Model):
+    """
+    Tabla intermedia que define qué materias está habilitado a dictar un profesor.
+    (Relación Many-to-Many explícita con atributos extra si fuera necesario).
+    """
     profesor = models.ForeignKey(Profesor, on_delete=models.CASCADE)
     materia = models.ForeignKey(Materia, on_delete=models.CASCADE)
 
@@ -185,6 +206,10 @@ class MateriaProfesor(models.Model):
         return f"{self.profesor} - {self.materia}"
 
 class Grado(models.Model):
+    """
+    Nivel educativo (ej. 1° Año, 2° Año).
+    Agrupa cursos y define el plan de estudios base.
+    """
     nombre = models.CharField(max_length=20)
 
     def clean(self):
@@ -198,6 +223,9 @@ class Grado(models.Model):
         return self.nombre
 
 class MateriaGrado(models.Model):
+    """
+    Plan de estudios: Define qué materias son obligatorias para un grado.
+    """
     grado = models.ForeignKey(Grado, on_delete=models.CASCADE)
     materia = models.ForeignKey(Materia, on_delete=models.CASCADE)
 
@@ -213,6 +241,10 @@ class MateriaGrado(models.Model):
         return f"{self.grado} - {self.materia}"
 
 class Curso(models.Model):
+    """
+    División específica de un grado (ej. 1° Año 'A').
+    Es la entidad principal a la que se le asigna el horario.
+    """
     nombre = models.CharField(max_length=20)
     grado = models.ForeignKey(Grado, on_delete=models.CASCADE)
     aula_fija = models.ForeignKey('Aula', on_delete=models.SET_NULL, null=True, blank=True, related_name='cursos_asignados')
@@ -228,6 +260,10 @@ class Curso(models.Model):
         return self.nombre
 
 class Aula(models.Model):
+    """
+    Espacio físico donde se dictan las clases.
+    Puede tener un tipo específico (Laboratorio, Gimnasio) para validar asignaciones.
+    """
     nombre = models.CharField(max_length=50)
     tipo = models.CharField(max_length=50, choices=[
         ('comun', 'Común'),
@@ -249,6 +285,9 @@ class Aula(models.Model):
         return f"{self.nombre} ({self.tipo})"
 
 class BloqueHorario(models.Model):
+    """
+    Definición lógica de los bloques de tiempo (ej. Bloque 1: 08:00 - 08:45).
+    """
     numero = models.IntegerField(
         validators=[MinValueValidator(1, 'El número de bloque debe ser al menos 1')]
     )
@@ -274,6 +313,10 @@ class BloqueHorario(models.Model):
         return f"Bloque {self.numero} ({self.tipo})"
 
 class Slot(models.Model):
+    """
+    Representación física de un espacio-tiempo (Día + Bloque).
+    Se usa para indexar y optimizar búsquedas de disponibilidad.
+    """
     dia = models.CharField(max_length=15, choices=[
             ('lunes','Lunes'), ('martes','Martes'), ('miércoles','Miércoles'),
             ('jueves','Jueves'), ('viernes','Viernes')
@@ -362,6 +405,10 @@ class ProfesorSlot(models.Model):
         return f"{self.profesor} @ {self.slot}"
 
 class CursoMateriaRequerida(models.Model):
+    """
+    Especifica la carga horaria exacta de una materia para un curso particular.
+    Sobrescribe la configuración general del Grado si existe.
+    """
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE)
     materia = models.ForeignKey(Materia, on_delete=models.CASCADE)
     bloques_requeridos = models.IntegerField(validators=[MinValueValidator(0)])

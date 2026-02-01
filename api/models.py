@@ -1,3 +1,6 @@
-from django.db import models
+"""
+Este archivo de modelos está vacío intencionalmente.
 
-# Create your models here.
+La aplicación `api` actúa como una interfaz REST y no define sus propias tablas.
+Utiliza los modelos definidos en el núcleo del dominio: `horarios.models`.
+"""

@@ -52,11 +52,13 @@ class ValidadorReglasDuras:
         """
         Valida una solución completa de horarios contra todas las reglas duras.
         
-        Args:
-            horarios: Lista de diccionarios con información de horarios
-            
-        Returns:
-            ResultadoValidacion con el resultado completo
+        Pipeline de Validación:
+        1. Unicidad Espacio-Temporal: Curso y Profesor no pueden tener >1 actividad en el mismo slot.
+        2. Disponibilidad: El profesor debe haber marcado el bloque como disponible.
+        3. Aptitud: El profesor debe estar habilitado para dictar esa materia.
+        4. Plan de Estudios: El curso debe tener EXACTAMENTE la cantidad de horas requeridas por materia.
+        5. Infraestructura: Respetar aulas fijas si existen.
+        6. Completitud: No pueden haber huecos vacíos en el horario del alumno.
         """
         import time
         inicio = time.time()
@@ -116,7 +118,10 @@ class ValidadorReglasDuras:
         return dict(por_profesor)
     
     def _validar_unicidad_curso_dia_bloque(self, horarios_por_curso: Dict):
-        """REGLA DURA: (curso, día, bloque) único"""
+        """
+        REGLA DURA: Un curso no puede tener dos clases al mismo tiempo.
+        Ejemplo: 5to A no puede tener Matemáticas y Lengua el Lunes a la 1ra hora simultáneamente.
+        """
         for curso_id, horarios in horarios_por_curso.items():
             slots_ocupados = set()
             
@@ -244,7 +249,10 @@ class ValidadorReglasDuras:
                 ))
     
     def _validar_diferencias_materias_obligatorias(self, horarios_por_curso: Dict):
-        """REGLA DURA: diferencias=0 por (curso, materia) obligatoria"""
+        """
+        REGLA DURA: Cumplimiento estricto del plan de estudios.
+        Si Matemáticas requiere 5 horas semanales, DEBE tener 5 asignaciones. Ni 4 (déficit) ni 6 (exceso).
+        """
         for curso_id, horarios in horarios_por_curso.items():
             try:
                 if isinstance(curso_id, int):

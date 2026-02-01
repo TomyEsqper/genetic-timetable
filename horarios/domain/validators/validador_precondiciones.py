@@ -106,7 +106,14 @@ class ValidadorPrecondiciones:
             }
     
     def _validar_configuracion_basica(self, config_colegio: Dict):
-        """Valida que la configuración básica sea coherente"""
+        """
+        Valida que la configuración básica sea coherente.
+        
+        Qué verifica:
+        1. Que existan suficientes 'bloques' de tipo clase en la BD.
+        2. Que existan cursos creados.
+        3. Que existan profesores creados.
+        """
         
         # Verificar que hay bloques de clase configurados
         bloques_clase = BloqueHorario.objects.filter(tipo='clase').count()
@@ -169,7 +176,15 @@ class ValidadorPrecondiciones:
             ))
 
     def _validar_oferta_vs_demanda_semanal(self):
-        """Valida oferta vs demanda semanal por materia"""
+        """
+        Valida oferta vs demanda semanal por materia.
+        
+        Lógica:
+        - Demanda: Suma de (bloques requeridos por materia * número de cursos).
+        - Oferta: Suma de (disponibilidad de profesores aptos para esa materia).
+        
+        Si Oferta < Demanda, es imposible cubrir todas las clases -> DÉFICIT.
+        """
         
         # Calcular demanda por materia (incluyendo relleno)
         demanda_por_materia = self._calcular_demanda_semanal()

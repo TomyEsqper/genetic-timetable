@@ -64,6 +64,12 @@ class SistemaReportes:
     """
     Sistema completo de reportes y diagnósticos para horarios.
     Proporciona análisis detallado del estado del sistema.
+    
+    Capacidades:
+    1. Resumen por Curso: Ocupación, huecos, cumplimiento de planes.
+    2. Resumen por Profesor: Carga horaria, huecos, eficiencia.
+    3. Alertas Previas: Problemas de configuración antes de generar.
+    4. Scoring Global: Calificación de 0 a 100 de la salud del horario.
     """
     
     def __init__(self):

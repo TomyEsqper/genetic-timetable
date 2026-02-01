@@ -451,7 +451,18 @@ class GeneradorDemandFirst:
         return estado_actual
     
     def _aplicar_operadores_mejora(self, estado: EstadoGeneracion) -> EstadoGeneracion:
-        """Aplica operadores de mejora al estado actual (Swap Intra-Curso)"""
+        """
+        Aplica operador de mutación: Swap Intra-Curso.
+        
+        Qué hace:
+        - Selecciona un curso al azar.
+        - Toma dos bloques de clase de ese curso (ej. Lunes 1 y Martes 4).
+        - Intenta intercambiarlos.
+        
+        Validaciones:
+        - Verifica que el profesor del bloque A pueda dar clase en el horario B y viceversa.
+        - Verifica que los profesores no tengan choque con otros cursos en los nuevos horarios.
+        """
         import copy
         
         # Estrategia: Copia superficial de la lista y clonación solo de los elementos modificados

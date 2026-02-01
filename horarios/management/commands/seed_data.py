@@ -10,6 +10,12 @@ from horarios.models import (
 )
 
 class Command(BaseCommand):
+    """
+    Comando para poblar la base de datos con un escenario de prueba REALISTA.
+    Crea configuración, bloques, cursos, profesores, materias y sus relaciones.
+    
+    WARNING: Borra todos los datos existentes antes de crear los nuevos.
+    """
     help = 'Pobla la base de datos con un escenario de colegio REALISTA (seed)'
 
     def handle(self, *args, **kwargs):

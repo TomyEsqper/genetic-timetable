@@ -3,6 +3,13 @@ from django.contrib.auth import get_user_model
 
 
 class Command(BaseCommand):
+    """
+    Comando para asegurar la existencia de un superusuario.
+    Útil para despliegues automatizados donde no hay interacción de shell.
+    
+    Uso:
+    python manage.py ensure_admin --username=admin --password=pass --email=admin@example.com
+    """
     help = "Crea o actualiza un superusuario de forma no interactiva (sin borrar otros datos)."
 
     def add_arguments(self, parser):

@@ -14,14 +14,13 @@ API potente y flexible para la **generación automática de horarios escolares**
 
 ---
 
-## 📚 **DOCUMENTACIÓN COMPLETA**
+## 📚 Documentación
 
-**Toda la documentación detallada se encuentra en la carpeta `/docs/` (si existiera). Actualmente toda la información relevante está centralizada aquí.**
+La documentación técnica detallada se encuentra en la carpeta `/docs/`:
 
-- **Documentación General** - Guía completa del proyecto
-- **Inicio Rápido** - Configuración y uso inmediato
-- **Implementación Técnica** - Detalles de implementación
-
+*   [🏛️ Arquitectura Técnica](docs/01_ARCHITECTURE.md)
+*   [🧬 Explicación del Algoritmo](docs/02_ALGORITHM.md)
+*   [🛠️ Guía de Setup para Devs](docs/03_SETUP.md)
 
 ---
 

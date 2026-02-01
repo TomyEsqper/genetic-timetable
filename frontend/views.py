@@ -42,6 +42,10 @@ BLOQUES = get_bloques_clase()
 HORARIO_TEMPLATE = 'frontend/horario.html'
 
 def index(request):
+    """
+    Vista principal del dashboard público.
+    Muestra resúmenes de cursos, profesores y aulas.
+    """
     # Optimizar consultas con select_related
     context = {
         'cursos': Curso.objects.select_related('grado', 'aula_fija').all(),
@@ -51,6 +55,9 @@ def index(request):
     return render(request, 'frontend/index.html', context)
 
 def horario_curso(request, curso_id):
+    """
+    Muestra la grilla de horario para un curso específico.
+    """
     # Optimizar consulta con select_related para obtener datos relacionados
     curso = get_object_or_404(Curso.objects.select_related('grado', 'aula_fija'), id=curso_id)
     # horarios = Horario.objects.filter(curso=curso).select_related('materia', 'profesor', 'aula') # Desacoplado
@@ -66,6 +73,9 @@ def horario_curso(request, curso_id):
     })
 
 def horario_profesor(request, profesor_id):
+    """
+    Muestra la grilla de horario para un profesor específico.
+    """
     # Optimizar consulta con select_related
     profesor = get_object_or_404(Profesor, id=profesor_id)
     # horarios = Horario.objects.filter(profesor=profesor).select_related('curso', 'materia', 'aula') # Desacoplado
@@ -81,6 +91,9 @@ def horario_profesor(request, profesor_id):
     })
 
 def horario_aula(request, aula_id):
+    """
+    Muestra la grilla de ocupación para un aula específica.
+    """
     # Optimizar consulta con select_related
     aula = get_object_or_404(Aula, id=aula_id)
     # horarios = Horario.objects.filter(aula=aula).select_related('curso', 'materia', 'profesor') # Desacoplado
@@ -96,6 +109,10 @@ def horario_aula(request, aula_id):
     })
 
 def validar_datos(request):
+    """
+    Vista de diagnóstico que muestra problemas en los datos maestros.
+    Ej: Cursos sin materias, materias sin profesor, etc.
+    """
     errores = []
 
     # Optimizar consultas para validaciones
@@ -137,6 +154,10 @@ def descargar_excel_por_profesor(request):
     return exportar_horario_por_profesor_csv()
 
 def generar_horario(request):
+    """
+    Endpoint que procesa la solicitud de generación de horarios.
+    Recibe parámetros de configuración, ejecuta el algoritmo y redirige al dashboard.
+    """
     if request.method == 'POST':
         try:
             # Obtener parámetros del formulario con valores predeterminados seguros
@@ -284,6 +305,10 @@ def dashboard(request):
     })
 
 def pdf_curso(request, curso_id):
+    """
+    Genera un archivo PDF con el horario del curso.
+    Usa xhtml2pdf para renderizar HTML a PDF.
+    """
     # Optimizar consulta para PDF
     curso = get_object_or_404(Curso.objects.select_related('grado', 'aula_fija'), id=curso_id)
     horarios = Horario.objects.filter(curso=curso).select_related('materia', 'profesor', 'aula')
