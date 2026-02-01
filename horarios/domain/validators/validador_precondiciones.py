@@ -65,6 +65,7 @@ class ValidadorPrecondiciones:
         
         # Ejecutar validaciones
         self._validar_configuracion_basica(config_colegio)
+        self._validar_balance_global_bloques()  # Nueva validación crítica
         self._validar_oferta_vs_demanda_semanal()
         self._validar_oferta_vs_demanda_diaria()
         self._validar_completitud_profesores_relleno()
@@ -134,6 +135,39 @@ class ValidadorPrecondiciones:
                 solucion_sugerida="Crear al menos un profesor"
             ))
     
+    def _validar_balance_global_bloques(self):
+        """
+        Validación INTELIGENTE: Verifica que la oferta TOTAL de bloques supere a la demanda TOTAL.
+        Evita el problema de 'doble conteo' cuando un profesor dicta múltiples materias.
+        """
+        # 1. Calcular Demanda Total (suma de todos los bloques requeridos por todos los cursos)
+        demanda_por_materia = self._calcular_demanda_semanal()
+        demanda_total = sum(demanda_por_materia.values())
+        
+        # 2. Calcular Oferta Total REAL (sin doble conteo por materia)
+        oferta_total = 0
+        for profesor in Profesor.objects.all():
+            # Disponibilidad horaria física (cuántos bloques marcó en verde)
+            disponibilidades = DisponibilidadProfesor.objects.filter(profesor=profesor)
+            bloques_fisicos = 0
+            for disp in disponibilidades:
+                bloques_fisicos += (disp.bloque_fin - disp.bloque_inicio + 1)
+            
+            # La capacidad real es el mínimo entre disponibilidad física y su contrato/tope
+            capacidad_real = min(bloques_fisicos, profesor.max_bloques_por_semana)
+            oferta_total += capacidad_real
+            
+        # 3. Validar Balance Global
+        if oferta_total < demanda_total:
+            self.problemas.append(ProblemaFactibilidad(
+                tipo="deficit_global_critico",
+                descripcion=f"DÉFICIT CRÍTICO GLOBAL: El colegio necesita {demanda_total} bloques totales, pero los profesores solo pueden cubrir {oferta_total}.",
+                oferta=oferta_total,
+                demanda=demanda_total,
+                deficit=demanda_total - oferta_total,
+                solucion_sugerida="Contratar más profesores urgentemente. El horario es matemáticamente imposible."
+            ))
+
     def _validar_oferta_vs_demanda_semanal(self):
         """Valida oferta vs demanda semanal por materia"""
         

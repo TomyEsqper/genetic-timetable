@@ -195,11 +195,27 @@ class GeneradorDemandFirst:
         """Asigna materias obligatorias a un curso"""
         slots = []
         
-        # Obtener requerimientos específicos del curso (CursoMateriaRequerida)
-        requerimientos = CursoMateriaRequerida.objects.filter(
+        # 1. Identificar requerimientos (Prioridad: CursoMateriaRequerida > MateriaGrado)
+        requerimientos = []
+        
+        # Intentar cargar configuración específica
+        cmr_qs = CursoMateriaRequerida.objects.filter(
             curso=curso,
             materia__es_relleno=False
         ).select_related('materia')
+        
+        if cmr_qs.exists():
+            for cmr in cmr_qs:
+                requerimientos.append((cmr.materia, cmr.bloques_requeridos))
+        else:
+            # Fallback: Configuración estándar por grado (Adaptabilidad)
+            mgs = MateriaGrado.objects.filter(
+                grado=curso.grado,
+                materia__es_relleno=False
+            ).select_related('materia')
+            
+            for mg in mgs:
+                requerimientos.append((mg.materia, mg.materia.bloques_por_semana))
         
         # Crear lista de slots disponibles
         slots_disponibles = []
@@ -210,10 +226,7 @@ class GeneradorDemandFirst:
         self.random.shuffle(slots_disponibles)
         
         # Asignar cada materia obligatoria
-        for req in requerimientos:
-            materia = req.materia
-            bloques_requeridos = req.bloques_requeridos
-            
+        for materia, bloques_requeridos in requerimientos:
             # Obtener profesores aptos
             profesores_aptos = list(Profesor.objects.filter(materiaprofesor__materia=materia))
             if not profesores_aptos:
@@ -533,8 +546,11 @@ class GeneradorDemandFirst:
         # 3. Evaluar consecutividad
         calidad += self._evaluar_consecutividad(slots) * 0.2
         
-        # 4. Evaluar distribución por profesor (suave)
+        # 4. Evaluar distribución por profesor (compactibilidad)
         calidad += self._evaluar_distribucion_profesores(slots) * 0.1
+        
+        # 5. Evaluar preferencias de jornada (Inteligencia)
+        calidad += self._evaluar_preferencias_jornada(slots) * 0.1
         
         return calidad
     
@@ -585,13 +601,117 @@ class GeneradorDemandFirst:
     
     def _evaluar_consecutividad(self, slots: List[SlotHorario]) -> float:
         """Evalúa cumplimiento de consecutividad para materias que lo requieren"""
-        # Implementación básica - se puede expandir
-        return 1.0
+        slots_por_curso_materia = defaultdict(list)
+        materias_cache = {}
+        
+        for slot in slots:
+            slots_por_curso_materia[(slot.curso_id, slot.materia_id)].append(slot)
+            if slot.materia_id not in materias_cache:
+                try:
+                    materias_cache[slot.materia_id] = Materia.objects.get(id=slot.materia_id)
+                except Materia.DoesNotExist:
+                    continue
+        
+        cumplimiento = 0
+        total_casos = 0
+        
+        for (curso_id, materia_id), slots_cm in slots_por_curso_materia.items():
+            materia = materias_cache.get(materia_id)
+            if not materia:
+                continue
+                
+            if materia.requiere_bloques_consecutivos or materia.requiere_doble_bloque:
+                # Agrupar por día
+                slots_por_dia = defaultdict(list)
+                for s in slots_cm:
+                    slots_por_dia[s.dia].append(s.bloque)
+                
+                for dia, bloques in slots_por_dia.items():
+                    total_casos += 1
+                    bloques_ordenados = sorted(bloques)
+                    es_consecutivo = True
+                    for i in range(len(bloques_ordenados) - 1):
+                        if bloques_ordenados[i+1] != bloques_ordenados[i] + 1:
+                            es_consecutivo = False
+                            break
+                    if es_consecutivo:
+                        cumplimiento += 1
+                        
+        return cumplimiento / total_casos if total_casos > 0 else 1.0
     
     def _evaluar_distribucion_profesores(self, slots: List[SlotHorario]) -> float:
-        """Evalúa distribución de profesores (criterio suave)"""
-        # Implementación básica - se puede expandir
-        return 1.0
+        """
+        Evalúa distribución de profesores para minimizar huecos (compactibilidad).
+        Un horario compacto para el profesor es mejor.
+        """
+        slots_por_profesor = defaultdict(list)
+        for slot in slots:
+            slots_por_profesor[slot.profesor_id].append((slot.dia, slot.bloque))
+            
+        puntuacion_total = 0.0
+        
+        for prof_id, slots_prof in slots_por_profesor.items():
+            # Agrupar por día
+            slots_por_dia = defaultdict(list)
+            for dia, bloque in slots_prof:
+                slots_por_dia[dia].append(bloque)
+            
+            huecos_total = 0
+            bloques_total = len(slots_prof)
+            
+            for dia, bloques in slots_por_dia.items():
+                if len(bloques) > 1:
+                    bloques_ordenados = sorted(bloques)
+                    rango = bloques_ordenados[-1] - bloques_ordenados[0] + 1
+                    huecos = rango - len(bloques)
+                    huecos_total += huecos
+            
+            # Penalizar huecos relativos a la carga total
+            # Si tiene muchos bloques, se toleran un poco más los huecos, pero idealmente 0
+            factor_penalizacion = huecos_total / (bloques_total + 1)  # +1 para evitar div/0
+            puntuacion_prof = max(0.0, 1.0 - factor_penalizacion)
+            puntuacion_total += puntuacion_prof
+            
+        return puntuacion_total / len(slots_por_profesor) if slots_por_profesor else 1.0
+
+    def _evaluar_preferencias_jornada(self, slots: List[SlotHorario]) -> float:
+        """
+        Evalúa si las materias se dictan en su jornada preferida.
+        Mañana: Bloques 1-6
+        Tarde: Bloques 7-12
+        """
+        cumplimiento = 0
+        total_evaluable = 0
+        materias_cache = {}
+        
+        for slot in slots:
+            if slot.materia_id not in materias_cache:
+                try:
+                    materias_cache[slot.materia_id] = Materia.objects.get(id=slot.materia_id)
+                except Materia.DoesNotExist:
+                    continue
+            
+            materia = materias_cache[slot.materia_id]
+            preferencia = materia.jornada_preferida
+            
+            if preferencia == 'cualquiera':
+                continue
+                
+            total_evaluable += 1
+            bloque = slot.bloque
+            
+            es_cumplido = False
+            if preferencia == 'mañana':
+                if bloque <= 6:
+                    es_cumplido = True
+            elif preferencia == 'tarde':
+                if bloque >= 7:
+                    es_cumplido = True
+            
+            if es_cumplido:
+                cumplimiento += 1
+                
+        return cumplimiento / total_evaluable if total_evaluable > 0 else 1.0
     
     def _convertir_a_diccionarios(self, slots: List[SlotHorario]) -> List[Dict]:
         """Convierte slots a formato de diccionarios"""
