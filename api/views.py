@@ -114,11 +114,36 @@ class GenerarHorarioView(APIView):
             # 3. PARÁMETROS DEL ALGORITMO
             parametros = {
                 'max_iteraciones': data.get('generaciones', 1000),
-                'paciencia': data.get('paciencia', 100)
+                'paciencia': data.get('paciencia', 100),
+                'semilla': semilla
             }
  
             logger.info(f"Iniciando generación con semilla {semilla} y config: {parametros}, preview={preview}")
- 
+            
+            # 3b. MODO ASÍNCRONO (Opcional)
+            # Si el cliente solicita async=true, delegamos a Celery/Redis
+            if data.get('async', False) and not preview:
+                task_result = ejecutar_generacion_horarios(
+                    colegio_id=1,  # TODO: Obtener del request/user
+                    async_mode=True,
+                    params=parametros
+                )
+                
+                # Si se creó la tarea exitosamente
+                if task_result.get('status') == 'task_created':
+                    return Response({
+                        "status": "accepted",
+                        "mensaje": "Generación iniciada en segundo plano",
+                        "task_id": task_result.get('task_id'),
+                        "monitor_url": f"/api/tareas/{task_result.get('task_id')}/"
+                    }, status=status.HTTP_202_ACCEPTED)
+                
+                # Si falló la conexión al broker, ejecutar_generacion_horarios ya corrió síncronamente (fallback)
+                # y task_result contiene el resumen de la ejecución.
+                if task_result.get('status') in ['success', 'error']:
+                    # Devolvemos el resultado simplificado del fallback
+                    return Response(task_result, status=status.HTTP_200_OK)
+
             # 4. EJECUCIÓN DEL ALGORITMO DEMAND-FIRST
             generador = GeneradorDemandFirst()
             resultado = generador.generar_horarios(semilla=semilla, **parametros)

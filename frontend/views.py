@@ -9,6 +9,7 @@ from xhtml2pdf import pisa
 from django.http import HttpResponse
 from horarios.models import Curso, Profesor, Aula, Horario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, BloqueHorario
 from horarios.infrastructure.adapters.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
+from horarios.infrastructure.utils.tasks import ejecutar_generacion_horarios
 from horarios.application.services.generador_demand_first import GeneradorDemandFirst
 from horarios.domain.validators.validador_precondiciones import ValidadorPrecondiciones
 from glob import glob
@@ -190,60 +191,26 @@ def generar_horario(request):
                     messages.error(request, f"  - {problema.descripcion}")
                 return redirect('dashboard')
 
-            generador = GeneradorDemandFirst()
-            resultado = generador.generar_horarios(**parametros)
+            # Ejecución centralizada (Síncrona para el frontend por ahora)
+            # Usamos el mismo entrypoint que la API para consistencia
+            # Nota: Esto ya maneja la persistencia internamente si tiene éxito
+            resultado = ejecutar_generacion_horarios(
+                colegio_id=1, 
+                async_mode=False, 
+                params=parametros
+            )
 
             if not resultado.get('exito'):
-                razon = resultado.get('razon', 'Falló la generación')
+                razon = resultado.get('error', 'Falló la generación')
                 messages.error(request, f"❌ Error al generar horarios: {razon}")
-                
-                # Mostrar detalles si existen
-                if 'factibilidad' in resultado:
-                    for problema in resultado['factibilidad'].problemas:
-                        messages.error(request, f"  - {problema.descripcion}")
             else:
-                # Guardar en BD
-                from django.db import transaction
+                # Success messages
+                tiempo_total = resultado.get('tiempo_ejecucion', 0)
+                slots = resultado.get('slots_generados', 0)
+                calidad = resultado.get('calidad_final', 0)
                 
-                try:
-                    with transaction.atomic():
-                        Horario.objects.all().delete()
-                        horarios_objetos = []
-                        for h in resultado['horarios']:
-                            curso = Curso.objects.get(id=h['curso_id'])
-                            materia = Materia.objects.get(id=h['materia_id'])
-                            profesor = Profesor.objects.get(id=h['profesor_id'])
-                            aula = None
-                            if h.get('aula_id'):
-                                aula = Aula.objects.filter(id=h['aula_id']).first()
-                            
-                            horario = Horario(
-                                curso=curso,
-                                materia=materia,
-                                profesor=profesor,
-                                dia=h['dia'],
-                                bloque=h['bloque'],
-                                aula=aula
-                            )
-                            horarios_objetos.append(horario)
-                        Horario.objects.bulk_create(horarios_objetos)
-                        
-                    # Success messages
-                    estadisticas = resultado.get('estadisticas', {})
-                    tiempo_total = estadisticas.get('tiempo_total', 0)
-                    slots = estadisticas.get('slots_generados', 0)
-                    calidad = resultado.get('calidad', 0)
-                    
-                    messages.success(request, f"✅ Horarios generados exitosamente en {tiempo_total:.2f} segundos")
-                    messages.info(request, f"📊 Slots: {slots}, Calidad: {calidad:.2f}")
-                    
-                    # Advertencias
-                    validacion = resultado.get('validacion_final')
-                    if validacion and hasattr(validacion, 'es_valido') and not validacion.es_valido:
-                        messages.warning(request, "⚠️ Se detectaron conflictos en el horario generado.")
-                        
-                except Exception as e:
-                    messages.error(request, f"❌ Error guardando horarios: {str(e)}")
+                messages.success(request, f"✅ Horarios generados exitosamente en {tiempo_total:.2f} segundos")
+                messages.info(request, f"📊 Slots: {slots}, Calidad: {calidad:.2f}")
                 
         except Exception as e:
             messages.error(request, f"❌ Error interno al generar horarios: {str(e)}")

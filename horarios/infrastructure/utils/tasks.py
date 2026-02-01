@@ -34,7 +34,39 @@ except ImportError:
 
 # Importamos el generador de horarios
 from horarios.application.services.generador_demand_first import GeneradorDemandFirst
-from horarios.models import ConfiguracionColegio
+from horarios.models import ConfiguracionColegio, Horario, Curso, Materia, Profesor, Aula, BloqueHorario
+from django.db import transaction
+
+def persistir_resultado_async(resultado: Dict[str, Any]) -> int:
+    """Persiste los resultados de la generación en la base de datos."""
+    try:
+        with transaction.atomic():
+            # Estrategia: Borrar horarios de los cursos afectados y recrearlos
+            cursos_afectados = set([h['curso_id'] for h in resultado.get('horarios', []) if 'curso_id' in h])
+            
+            if not cursos_afectados:
+                return 0
+                
+            # Limpiar horarios anteriores de estos cursos
+            Horario.objects.filter(curso_id__in=cursos_afectados).delete()
+            
+            # Crear nuevos objetos
+            objetos = []
+            for h in resultado.get('horarios', []):
+                objetos.append(Horario(
+                    curso_id=h['curso_id'], 
+                    materia_id=h['materia_id'], 
+                    profesor_id=h['profesor_id'],
+                    aula_id=h.get('aula_id'), 
+                    dia=h['dia'], 
+                    bloque=h['bloque']
+                ))
+            
+            Horario.objects.bulk_create(objetos, batch_size=1000)
+            return len(objetos)
+    except Exception as e:
+        logging.error(f"Error persistiendo resultados en tarea asíncrona: {e}")
+        raise e
 
 
 @shared_task(bind=True, name='horarios.generar_horarios_async')
@@ -71,6 +103,17 @@ def generar_horarios_async(self, colegio_id: int, params: Optional[Dict[str, Any
         generador = GeneradorDemandFirst()
         resultado = generador.generar_horarios(**run_params)
         
+        # PERSISTENCIA AUTOMÁTICA
+        registros_guardados = 0
+        if resultado.get('exito'):
+            try:
+                registros_guardados = persistir_resultado_async(resultado)
+                logging.info(f"Tarea asíncrona: Guardados {registros_guardados} horarios.")
+            except Exception as e:
+                logging.error(f"Error guardando resultados: {e}")
+                resultado['exito'] = False
+                resultado['error_persistencia'] = str(e)
+
         if CELERY_AVAILABLE and hasattr(self, 'update_state'):
             self.update_state(state='SUCCESS', meta={'status': 'terminado', 'exito': resultado.get('exito')})
         
@@ -81,7 +124,7 @@ def generar_horarios_async(self, colegio_id: int, params: Optional[Dict[str, Any
             'tiempo_ejecucion': elapsed_time,
             'calidad_final': resultado.get('calidad', 0),
             'slots_generados': resultado.get('estadisticas', {}).get('slots_generados', 0),
-            'horarios_generados': len(resultado.get('horarios', [])),
+            'horarios_generados': registros_guardados, # Retornamos los guardados en BD
             'exito': resultado.get('exito', False),
         }
     except Exception as e:
@@ -112,12 +155,17 @@ def ejecutar_generacion_horarios(colegio_id: int, async_mode: bool = False,
     """
     if async_mode and CELERY_AVAILABLE:
         # Ejecutar de forma asíncrona
-        task = generar_horarios_async.delay(colegio_id, params)
-        return {
-            'status': 'task_created',
-            'task_id': task.id,
-            'colegio_id': colegio_id
-        }
+        try:
+            task = generar_horarios_async.delay(colegio_id, params)
+            return {
+                'status': 'task_created',
+                'task_id': task.id,
+                'colegio_id': colegio_id
+            }
+        except Exception as e:
+            logging.error(f"Error conectando con broker Celery: {e}. Ejecutando síncronamente.")
+            # Fallback a síncrono
+            return generar_horarios_async(None, colegio_id, params)
     else:
         # Ejecutar de forma síncrona
         if async_mode and not CELERY_AVAILABLE:
