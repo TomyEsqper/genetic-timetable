@@ -34,4 +34,5 @@ urlpatterns = [
     path('estadisticas-ajax/', views.estadisticas_ajax, name='estadisticas_ajax'),
     path('progreso-ajax/', views.progreso_ajax, name='progreso_ajax'),
     path('limpiar-cache-progreso/', views.limpiar_cache_progreso, name='limpiar_cache_progreso'),
+    path('mover-horario-ajax/', views.mover_horario_ajax, name='mover_horario_ajax'),
 ]

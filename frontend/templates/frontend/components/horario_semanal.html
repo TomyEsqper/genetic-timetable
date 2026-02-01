@@ -71,13 +71,21 @@
               Bloque {{ bloque }}
             </td>
             {% for dia in dias %}
-            <td class="border border-gray-300 p-2 text-center min-h-[60px] hover:bg-gray-50 transition-colors">
+            <td class="border border-gray-300 p-2 text-center min-h-[60px] hover:bg-gray-50 transition-colors drop-target relative"
+                data-dia="{{ dia }}" 
+                data-bloque="{{ bloque }}" 
+                data-curso="{{ curso.id }}">
               {% for horario in horarios %}
                 {% if horario.dia == dia and horario.bloque == bloque %}
-                <div class="text-sm p-1 rounded shadow-sm" 
+                <div class="draggable-item text-sm p-2 rounded shadow-sm border border-gray-200 cursor-move hover:shadow-md transition-all transform hover:-translate-y-0.5 active:scale-95 select-none" 
+                     draggable="true"
+                     data-horario-id="{{ horario.id }}"
                      style="background-color: {% cycle '#e3f2fd' '#f3e5f5' '#e8f5e8' '#fff3e0' '#fce4ec' as colors %}">
-                  <div class="font-semibold text-blue-700">{{ horario.materia.nombre }}</div>
-                  <div class="text-gray-600 text-xs">{{ horario.profesor.nombre }}</div>
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold text-blue-700">{{ horario.materia.nombre }}</div>
+                    <div class="cursor-grab text-gray-400">⋮⋮</div>
+                  </div>
+                  <div class="text-gray-600 text-xs mt-1">{{ horario.profesor.nombre }}</div>
                   {% if horario.aula %}
                   <div class="text-gray-500 text-xs">{{ horario.aula.nombre }}</div>
                   {% endif %}

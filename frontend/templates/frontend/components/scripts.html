@@ -631,5 +631,125 @@ function initProgresoGA() {
 // Auto iniciar en dashboard
 if (window.location.pathname === '/dashboard/') {
   document.addEventListener('DOMContentLoaded', initProgresoGA);
+  document.addEventListener('DOMContentLoaded', initDragAndDrop);
+}
+
+// Helper para obtener CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Funcionalidad Drag and Drop
+function initDragAndDrop() {
+  const draggables = document.querySelectorAll('.draggable-item');
+  const dropTargets = document.querySelectorAll('.drop-target');
+  
+  draggables.forEach(draggable => {
+    draggable.addEventListener('dragstart', () => {
+      draggable.classList.add('opacity-50', 'scale-105', 'shadow-lg');
+      draggable.classList.add('dragging');
+      // Guardar ID del horario
+      draggable.dataset.sourceDia = draggable.closest('td').dataset.dia;
+      draggable.dataset.sourceBloque = draggable.closest('td').dataset.bloque;
+    });
+
+    draggable.addEventListener('dragend', () => {
+      draggable.classList.remove('opacity-50', 'scale-105', 'shadow-lg');
+      draggable.classList.remove('dragging');
+      
+      // Limpiar clases de highlight de todos los targets
+      dropTargets.forEach(target => {
+        target.classList.remove('bg-blue-100', 'ring-2', 'ring-blue-400', 'ring-inset');
+      });
+    });
+  });
+
+  dropTargets.forEach(target => {
+    target.addEventListener('dragover', (e) => {
+      e.preventDefault(); // Necesario para permitir drop
+      const draggingItem = document.querySelector('.dragging');
+      if (draggingItem) {
+        // Solo resaltar si es una celda diferente
+        if (target !== draggingItem.closest('td')) {
+            target.classList.add('bg-blue-100', 'ring-2', 'ring-blue-400', 'ring-inset');
+        }
+      }
+    });
+
+    target.addEventListener('dragleave', () => {
+      target.classList.remove('bg-blue-100', 'ring-2', 'ring-blue-400', 'ring-inset');
+    });
+
+    target.addEventListener('drop', (e) => {
+      e.preventDefault();
+      target.classList.remove('bg-blue-100', 'ring-2', 'ring-blue-400', 'ring-inset');
+      
+      const draggable = document.querySelector('.dragging');
+      if (!draggable) return;
+      
+      const sourceTd = draggable.closest('td');
+      
+      // Si soltamos en la misma celda, no hacer nada
+      if (target === sourceTd) return;
+
+      // Validación Frontend: Verificar si el target ya tiene una clase asignada
+      if (target.querySelector('.draggable-item')) {
+          mostrarNotificacion('❌ Este espacio ya está ocupado por otra clase.', 'error');
+          return;
+      }
+      
+      // Mover el elemento al nuevo contenedor visualmente
+      target.appendChild(draggable);
+      
+      // Datos para actualizar
+      const horarioId = draggable.dataset.horarioId;
+      const nuevoDia = target.dataset.dia;
+      const nuevoBloque = target.dataset.bloque;
+      const cursoId = target.dataset.curso;
+      
+      // Feedback visual inmediato
+      mostrarNotificacion(`🔄 Guardando cambio...`, 'info');
+      
+      // Llamada AJAX al backend
+      fetch('/mover-horario-ajax/', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({
+              horario_id: horarioId,
+              nuevo_dia: nuevoDia,
+              nuevo_bloque: nuevoBloque
+          })
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (data.estado === 'exito') {
+              mostrarNotificacion('✅ Cambio guardado correctamente', 'success');
+          } else {
+              mostrarNotificacion(`❌ Error: ${data.error}`, 'error');
+              // Revertir cambio visualmente (opcional, por simplicidad lo dejamos así o recargamos)
+              setTimeout(() => location.reload(), 1500); 
+          }
+      })
+      .catch(error => {
+          console.error('Error:', error);
+          mostrarNotificacion('❌ Error de conexión', 'error');
+          setTimeout(() => location.reload(), 1500);
+      });
+    });
+  });
 }
 </script>

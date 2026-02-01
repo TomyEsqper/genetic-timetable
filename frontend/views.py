@@ -488,3 +488,45 @@ def limpiar_cache_progreso(request):
             'estado': 'error',
             'mensaje': f'Error: {str(e)}'
         }, status=500)
+
+@require_http_methods(["POST"])
+def mover_horario_ajax(request):
+    """Mueve un horario a otro día/bloque vía AJAX"""
+    try:
+        import json
+        data = json.loads(request.body)
+        
+        horario_id = data.get('horario_id')
+        nuevo_dia = data.get('nuevo_dia')
+        nuevo_bloque = int(data.get('nuevo_bloque'))
+        
+        if not all([horario_id, nuevo_dia, nuevo_bloque]):
+            return JsonResponse({'error': 'Faltan parámetros'}, status=400)
+            
+        horario = get_object_or_404(Horario, id=horario_id)
+        
+        # Validar colisión de Curso (El curso ya tiene clase en ese bloque?)
+        if Horario.objects.filter(curso=horario.curso, dia=nuevo_dia, bloque=nuevo_bloque).exclude(id=horario.id).exists():
+             return JsonResponse({'error': f'El curso {horario.curso.nombre} ya tiene una clase asignada en {nuevo_dia} bloque {nuevo_bloque}.'}, status=400)
+
+        # Validar colisión de Profesor (El profesor ya tiene clase en ese bloque con otro curso?)
+        if Horario.objects.filter(profesor=horario.profesor, dia=nuevo_dia, bloque=nuevo_bloque).exclude(id=horario.id).exists():
+             return JsonResponse({'error': f'El profesor {horario.profesor.nombre} ya tiene clase en {nuevo_dia} bloque {nuevo_bloque}.'}, status=400)
+
+        # Actualizar horario
+        horario.dia = nuevo_dia
+        horario.bloque = nuevo_bloque
+        horario.save()
+        
+        return JsonResponse({
+            'estado': 'exito',
+            'mensaje': 'Horario actualizado correctamente',
+            'horario': {
+                'id': horario.id,
+                'dia': horario.dia,
+                'bloque': horario.bloque
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
