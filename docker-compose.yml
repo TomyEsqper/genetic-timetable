@@ -1,0 +1,35 @@
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_DEBUG=True
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_ENGINE=django.db.backends.sqlite3
+    depends_on:
+      - redis
+
+  celery:
+    build: .
+    command: celery -A colegio worker -l info
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_DEBUG=True
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_ENGINE=django.db.backends.sqlite3
+      - C_FORCE_ROOT=1  # Necesario porque el contenedor corre como root
+    depends_on:
+      - redis
+      - web
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
