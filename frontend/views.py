@@ -13,6 +13,10 @@ from horarios.infrastructure.utils.tasks import ejecutar_generacion_horarios
 from horarios.application.services.generador_demand_first import GeneradorDemandFirst
 from horarios.domain.validators.validador_precondiciones import ValidadorPrecondiciones
 from glob import glob
+try:
+    from celery.result import AsyncResult
+except ImportError:
+    AsyncResult = None
 
 def get_dias_clase():
     """
@@ -191,20 +195,24 @@ def generar_horario(request):
                     messages.error(request, f"  - {problema.descripcion}")
                 return redirect('dashboard')
 
-            # Ejecución centralizada (Síncrona para el frontend por ahora)
+            # Ejecución centralizada (Asíncrona)
             # Usamos el mismo entrypoint que la API para consistencia
-            # Nota: Esto ya maneja la persistencia internamente si tiene éxito
             resultado = ejecutar_generacion_horarios(
                 colegio_id=1, 
-                async_mode=False, 
+                async_mode=True, 
                 params=parametros
             )
 
-            if not resultado.get('exito'):
+            if resultado.get('status') == 'task_created':
+                # Modo asíncrono: Guardar ID de tarea en sesión
+                request.session['task_id'] = resultado.get('task_id')
+                messages.success(request, "🚀 Generación iniciada en segundo plano. Los resultados aparecerán pronto.")
+            elif not resultado.get('exito'):
+                # Modo síncrono (fallback) o error inmediato
                 razon = resultado.get('error', 'Falló la generación')
                 messages.error(request, f"❌ Error al generar horarios: {razon}")
             else:
-                # Success messages
+                # Modo síncrono: Éxito
                 tiempo_total = resultado.get('tiempo_ejecucion', 0)
                 slots = resultado.get('slots_generados', 0)
                 calidad = resultado.get('calidad_final', 0)
@@ -414,55 +422,70 @@ def estadisticas_ajax(request):
 
 @require_http_methods(["GET"])
 def progreso_ajax(request):
-    """Devuelve progreso en tiempo real de la última ejecución.
-    Lee el progreso desde la base de datos.
-    """
+    """Devuelve progreso en tiempo real de la última ejecución."""
     try:
         from horarios.models import Horario
-        from django.core.cache import cache
         
-        # Obtener información de horarios parciales
-        horarios_parciales = Horario.objects.count()
+        # 1. Verificar si hay una tarea asíncrona en sesión
+        task_id = request.session.get('task_id')
         
-        # Si hay horarios, asumimos que el proceso finalizó (Generación Síncrona)
-        if horarios_parciales > 0:
-            progreso = {
-                'estado': 'finalizado',
-                'generacion': 1,
-                'mejor_fitness': 1.0,
-                'fitness_promedio': 1.0,
-                'fill_pct': 100.0,
-                'horarios_parciales': horarios_parciales,
-                'objetivo': 1,
-                'tiempo_estimado': 'Completado',
-                'mensaje': 'Horarios generados exitosamente'
-            }
-        else:
-            # Si no hay horarios, verificar si hay una tarea asíncrona (opcional)
-            # Por ahora, devolvemos estado inicial
-            progreso = {
-                'estado': 'sin_datos',
-                'generacion': 0,
-                'mejor_fitness': 0.0,
-                'fitness_promedio': 0.0,
-                'fill_pct': 0.0,
-                'horarios_parciales': 0,
-                'objetivo': 100,
-                'tiempo_estimado': 'Sin datos',
-                'mensaje': 'No hay proceso de generación activo'
-            }
+        if task_id and AsyncResult:
+            res = AsyncResult(task_id)
             
-        return JsonResponse(progreso)
+            if res.state == 'PROGRESS' or res.state == 'STARTED':
+                info = res.info if isinstance(res.info, dict) else {}
+                return JsonResponse({
+                    'estado': 'en_progreso',
+                    'generacion': info.get('generacion', 0),
+                    'mejor_fitness': info.get('fitness', 0.0),
+                    'fitness_promedio': info.get('fitness', 0.0), # Fallback
+                    'fill_pct': info.get('ocupacion', 0.0),
+                    'horarios_parciales': info.get('horarios', 0),
+                    'objetivo': info.get('total_generaciones', 100),
+                    'mensaje': info.get('status', 'Procesando...')
+                })
+                
+            elif res.state == 'SUCCESS':
+                # Tarea finalizada exitosamente
+                # Limpiar task_id de sesión para no seguir consultando
+                # request.session.pop('task_id', None) # Lo mantenemos un poco más por si acaso
+                
+                result_data = res.result if isinstance(res.result, dict) else {}
+                return JsonResponse({
+                    'estado': 'finalizado',
+                    'mensaje': 'Generación completada',
+                    'mejor_fitness': result_data.get('calidad_final', 1.0),
+                    'horarios_parciales': result_data.get('slots_generados', 0)
+                })
+                
+            elif res.state == 'FAILURE':
+                return JsonResponse({
+                    'estado': 'error',
+                    'mensaje': f"Error en la tarea: {str(res.result)}"
+                })
+                
+            elif res.state == 'PENDING':
+                return JsonResponse({
+                    'estado': 'en_progreso',
+                    'mensaje': 'Iniciando tarea...',
+                    'generacion': 0
+                })
+        
+        # 2. Fallback: Verificar base de datos (para modo síncrono o si se perdió la sesión)
+        horarios_parciales = Horario.objects.count()
+        if horarios_parciales > 0:
+            return JsonResponse({
+                'estado': 'finalizado',
+                'mensaje': 'Horarios existentes',
+                'horarios_parciales': horarios_parciales
+            })
+            
+        return JsonResponse({'estado': 'sin_datos', 'mensaje': 'No hay proceso activo'})
         
     except Exception as e:
         return JsonResponse({
             'estado': 'error',
-            'mensaje': f'Error: {str(e)}',
-            'generacion': 0,
-            'mejor_fitness': 0.0,
-            'fitness_promedio': 0.0,
-            'fill_pct': 0.0,
-            'horarios_parciales': 0
+            'mensaje': f'Error interno: {str(e)}'
         })
 
 @require_http_methods(["GET"])

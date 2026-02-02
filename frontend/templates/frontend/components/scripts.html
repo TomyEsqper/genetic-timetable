@@ -418,6 +418,16 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Actualizar estadísticas cada 30 segundos
   setInterval(cargarEstadisticas, 30000);
+  
+  // Verificar si hay una tarea en progreso al cargar
+  fetch('/progreso-ajax/')
+    .then(response => response.json())
+    .then(data => {
+        if (data.estado === 'en_progreso') {
+            iniciarMonitoreoProgreso();
+        }
+    })
+    .catch(console.error);
 });
 // Funcionalidad para cargar horarios dinámicamente
 function cargarHorarioAjax(tipo, id) {
