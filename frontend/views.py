@@ -506,7 +506,7 @@ def limpiar_cache_progreso(request):
 
 @require_http_methods(["POST"])
 def mover_horario_ajax(request):
-    """Mueve un horario a otro día/bloque vía AJAX"""
+    """Mueve un horario a otro día/bloque vía AJAX (con soporte para SWAP)"""
     try:
         import json
         data = json.loads(request.body)
@@ -520,22 +520,72 @@ def mover_horario_ajax(request):
             
         horario = get_object_or_404(Horario, id=horario_id)
         
-        # Validar colisión de Curso (El curso ya tiene clase en ese bloque?)
-        if Horario.objects.filter(curso=horario.curso, dia=nuevo_dia, bloque=nuevo_bloque).exclude(id=horario.id).exists():
-             return JsonResponse({'error': f'El curso {horario.curso.nombre} ya tiene una clase asignada en {nuevo_dia} bloque {nuevo_bloque}.'}, status=400)
+        # Guardar valores originales para posible swap
+        dia_original = horario.dia
+        bloque_original = horario.bloque
+        
+        # 1. Detectar si hay un horario en el destino para el MISMO curso (Conflicto de Curso -> SWAP)
+        horario_destino = Horario.objects.filter(
+            curso=horario.curso, 
+            dia=nuevo_dia, 
+            bloque=nuevo_bloque
+        ).exclude(id=horario.id).first()
+        
+        if horario_destino:
+            # --- Lógica de SWAP ---
+            # Validar conflictos de Profesor Cruzados:
+            # A (horario) va a Destino. ¿Profesor de A está libre en Destino (excepto por la clase que ya está ahí, que se va a mover)?
+            # B (horario_destino) va a Origen. ¿Profesor de B está libre en Origen (excepto por la clase A que se va)?
+            
+            # Validar Profesor A en Destino (Ignorando a B que ocupa ese lugar ahora)
+            if Horario.objects.filter(profesor=horario.profesor, dia=nuevo_dia, bloque=nuevo_bloque).exclude(id=horario.id).exclude(id=horario_destino.id).exists():
+                 return JsonResponse({'error': f'El profesor {horario.profesor.nombre} ya tiene otra clase (en otro curso) en {nuevo_dia} bloque {nuevo_bloque}.'}, status=400)
 
-        # Validar colisión de Profesor (El profesor ya tiene clase en ese bloque con otro curso?)
-        if Horario.objects.filter(profesor=horario.profesor, dia=nuevo_dia, bloque=nuevo_bloque).exclude(id=horario.id).exists():
-             return JsonResponse({'error': f'El profesor {horario.profesor.nombre} ya tiene clase en {nuevo_dia} bloque {nuevo_bloque}.'}, status=400)
+            # Validar Profesor B en Origen (Ignorando a A que ocupa ese lugar ahora)
+            if Horario.objects.filter(profesor=horario_destino.profesor, dia=dia_original, bloque=bloque_original).exclude(id=horario_destino.id).exclude(id=horario.id).exists():
+                 return JsonResponse({'error': f'El profesor {horario_destino.profesor.nombre} ya tiene otra clase (en otro curso) en {dia_original} bloque {bloque_original}.'}, status=400)
 
-        # Actualizar horario
-        horario.dia = nuevo_dia
-        horario.bloque = nuevo_bloque
-        horario.save()
+            # Ejecutar SWAP atómico
+            with transaction.atomic():
+                # Mover A a temporal (para evitar colisiones de unique constraints si las hubiera)
+                horario.dia = 'TEMP' 
+                horario.save()
+                
+                # Mover B a Origen
+                horario_destino.dia = dia_original
+                horario_destino.bloque = bloque_original
+                horario_destino.save()
+                
+                # Mover A a Destino
+                horario.dia = nuevo_dia
+                horario.bloque = nuevo_bloque
+                horario.save()
+                
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Intercambio realizado correctamente',
+                'swap': True,
+                'origen': {'dia': dia_original, 'bloque': bloque_original},
+                'destino': {'dia': nuevo_dia, 'bloque': nuevo_bloque}
+            })
+
+        else:
+            # --- Lógica de Movimiento Simple ---
+            
+            # Validar colisión de Curso (El curso ya tiene clase en ese bloque?) -> Ya chequeado arriba, es horario_destino
+            # Si llegamos aquí, horario_destino es None, así que no hay colisión de curso.
+
+            # Validar colisión de Profesor (El profesor ya tiene clase en ese bloque con otro curso?)
+            if Horario.objects.filter(profesor=horario.profesor, dia=nuevo_dia, bloque=nuevo_bloque).exclude(id=horario.id).exists():
+                 return JsonResponse({'error': f'El profesor {horario.profesor.nombre} ya tiene clase en {nuevo_dia} bloque {nuevo_bloque}.'}, status=400)
+
+            # Actualizar horario
+            horario.dia = nuevo_dia
+            horario.bloque = nuevo_bloque
+            horario.save()
         
         return JsonResponse({
-            'estado': 'exito',
-            'mensaje': 'Horario actualizado correctamente',
+            'status': 'success',
             'horario': {
                 'id': horario.id,
                 'dia': horario.dia,

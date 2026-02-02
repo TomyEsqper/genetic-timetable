@@ -713,23 +713,26 @@ function initDragAndDrop() {
       // Si soltamos en la misma celda, no hacer nada
       if (target === sourceTd) return;
 
-      // Validación Frontend: Verificar si el target ya tiene una clase asignada
-      if (target.querySelector('.draggable-item')) {
-          mostrarNotificacion('❌ Este espacio ya está ocupado por otra clase.', 'error');
-          return;
-      }
+      // Detectar si hay un elemento existente para hacer SWAP
+      const existingItem = target.querySelector('.draggable-item');
       
-      // Mover el elemento al nuevo contenedor visualmente
-      target.appendChild(draggable);
+      // Si hay un item existente, hacemos swap visual
+      if (existingItem) {
+          // Mover el existente al origen
+          sourceTd.appendChild(existingItem);
+          // Mover el arrastrado al destino
+          target.appendChild(draggable);
+          mostrarNotificacion('🔄 Intercambiando horarios...', 'info');
+      } else {
+          // Mover simple
+          target.appendChild(draggable);
+          mostrarNotificacion(`🔄 Guardando cambio...`, 'info');
+      }
       
       // Datos para actualizar
       const horarioId = draggable.dataset.horarioId;
       const nuevoDia = target.dataset.dia;
       const nuevoBloque = target.dataset.bloque;
-      const cursoId = target.dataset.curso;
-      
-      // Feedback visual inmediato
-      mostrarNotificacion(`🔄 Guardando cambio...`, 'info');
       
       // Llamada AJAX al backend
       fetch('/mover-horario-ajax/', {
@@ -746,18 +749,31 @@ function initDragAndDrop() {
       })
       .then(response => response.json())
       .then(data => {
-          if (data.estado === 'exito') {
+          if (data.status === 'success') {
               mostrarNotificacion('✅ Cambio guardado correctamente', 'success');
+              // Actualizar metadatos del item movido
+              // Nota: No necesitamos actualizar mucho porque la posición DOM ya es correcta
           } else {
               mostrarNotificacion(`❌ Error: ${data.error}`, 'error');
-              // Revertir cambio visualmente (opcional, por simplicidad lo dejamos así o recargamos)
-              setTimeout(() => location.reload(), 1500); 
+              // Revertir cambio visualmente si falla
+              if (existingItem) {
+                  target.appendChild(existingItem);
+                  sourceTd.appendChild(draggable);
+              } else {
+                  sourceTd.appendChild(draggable);
+              }
           }
       })
       .catch(error => {
           console.error('Error:', error);
           mostrarNotificacion('❌ Error de conexión', 'error');
-          setTimeout(() => location.reload(), 1500);
+          // Revertir cambio
+          if (existingItem) {
+              target.appendChild(existingItem);
+              sourceTd.appendChild(draggable);
+          } else {
+              sourceTd.appendChild(draggable);
+          }
       });
     });
   });
