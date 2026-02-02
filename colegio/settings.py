@@ -134,6 +134,9 @@ if DB_ENGINE == 'django.db.backends.sqlite3':
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            'OPTIONS': {
+                'timeout': 30,  # Aumentar timeout a 30s para evitar "database is locked" en concurrencia
+            }
         }
     }
 else:

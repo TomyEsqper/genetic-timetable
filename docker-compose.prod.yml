@@ -28,6 +28,8 @@ services:
     command: celery -A colegio worker -l info
     volumes:
       - .:/app
+    env_file:
+      - .env.prod
     environment:
       - DJANGO_DEBUG=False
       - CELERY_BROKER_URL=redis://redis:6379/0

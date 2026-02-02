@@ -1,111 +1,233 @@
 {
   "configuracion": {
     "dias_clase": "lunes,martes,miércoles,jueves,viernes",
-    "bloques_por_dia": 7,
-    "duracion_bloque": 50,
+    "bloques_por_dia": 6,
+    "duracion_bloque": 55,
     "jornada": "mañana"
   },
   "materias": [
     { "nombre": "Matemáticas" },
     { "nombre": "Español" },
+    { "nombre": "Inglés" },
     { "nombre": "Ciencias Naturales" },
     { "nombre": "Ciencias Sociales" },
-    { "nombre": "Inglés" },
     { "nombre": "Educación Física" },
-    { "nombre": "Artes" },
     { "nombre": "Tecnología" },
+    { "nombre": "Artes" },
     { "nombre": "Ética" },
-    { "nombre": "Religión" }
+    { "nombre": "Religión" },
+    { "nombre": "Cálculo" },
+    { "nombre": "Física" },
+    { "nombre": "Química" },
+    { "nombre": "Español y Literatura" },
+    { "nombre": "Inglés Intensivo" },
+    { "nombre": "Filosofía" },
+    { "nombre": "Ciencias Políticas" },
+    { "nombre": "Tecnología Aplicada" },
+    { "nombre": "Investigación" },
+    { "nombre": "Actividad Complementaria" }
   ],
   "profesores": [
     {
-      "nombre": "Juan Pérez (Matemáticas)",
+      "nombre": "Prof. Newton",
+      "materias_capaces": ["Matemáticas", "Cálculo", "Física"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Euler",
+      "materias_capaces": ["Matemáticas", "Cálculo"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Hipatia",
       "materias_capaces": ["Matemáticas"],
-      "disponibilidad": [] 
-    },
-    {
-      "nombre": "Ana García (Español)",
-      "materias_capaces": ["Español"],
       "disponibilidad": []
     },
     {
-      "nombre": "Carlos López (Ciencias)",
-      "materias_capaces": ["Ciencias Naturales"],
+      "nombre": "Prof. Curie",
+      "materias_capaces": ["Química", "Ciencias Naturales", "Investigación"],
       "disponibilidad": []
     },
     {
-      "nombre": "María Rodríguez (Sociales)",
-      "materias_capaces": ["Ciencias Sociales", "Ética"],
+      "nombre": "Prof. Darwin",
+      "materias_capaces": ["Ciencias Naturales", "Investigación"],
       "disponibilidad": []
     },
     {
-      "nombre": "Pedro Martínez (Inglés)",
-      "materias_capaces": ["Inglés"],
+      "nombre": "Prof. Einstein",
+      "materias_capaces": ["Física", "Ciencias Naturales", "Investigación"],
       "disponibilidad": []
     },
     {
-      "nombre": "Luisa Fernández (EduFísica)",
+      "nombre": "Prof. Cervantes",
+      "materias_capaces": ["Español", "Español y Literatura"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Gabo",
+      "materias_capaces": ["Español", "Español y Literatura"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Shakespeare",
+      "materias_capaces": ["Inglés", "Inglés Intensivo"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Wilde",
+      "materias_capaces": ["Inglés", "Inglés Intensivo"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Herodoto",
+      "materias_capaces": ["Ciencias Sociales", "Ciencias Políticas"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Platón",
+      "materias_capaces": ["Filosofía", "Ética", "Religión", "Ciencias Políticas"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Marx",
+      "materias_capaces": ["Ciencias Sociales", "Filosofía", "Ciencias Políticas"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Da Vinci",
+      "materias_capaces": ["Artes", "Tecnología", "Tecnología Aplicada"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Picasso",
+      "materias_capaces": ["Artes"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Jobs",
+      "materias_capaces": ["Tecnología", "Tecnología Aplicada"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Messi",
       "materias_capaces": ["Educación Física"],
       "disponibilidad": []
     },
     {
-      "nombre": "Sofía Ramírez (Artes/Tecnología)",
-      "materias_capaces": ["Artes", "Tecnología"],
+      "nombre": "Prof. Jordan",
+      "materias_capaces": ["Educación Física"],
       "disponibilidad": []
     },
     {
-      "nombre": "Padre Antonio (Religión)",
-      "materias_capaces": ["Religión"],
+      "nombre": "Prof. Francisco",
+      "materias_capaces": ["Religión", "Ética", "Actividad Complementaria"],
+      "disponibilidad": []
+    },
+    {
+      "nombre": "Prof. Monitor",
+      "materias_capaces": ["Actividad Complementaria"],
       "disponibilidad": []
     }
   ],
   "cursos": [
     {
-      "nombre": "6A",
+      "nombre": "SEXTO A",
       "grado": "6",
       "plan_estudios": {
-        "Matemáticas": 5,
-        "Español": 5,
-        "Ciencias Naturales": 4,
-        "Ciencias Sociales": 4,
-        "Inglés": 3,
-        "Educación Física": 2,
-        "Artes": 2,
-        "Tecnología": 2,
-        "Ética": 1,
-        "Religión": 1
+        "Matemáticas": 5, "Español": 4, "Inglés": 4, "Ciencias Naturales": 4, "Ciencias Sociales": 4,
+        "Educación Física": 2, "Tecnología": 2, "Artes": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
       }
     },
     {
-      "nombre": "6B",
+      "nombre": "SEXTO B",
       "grado": "6",
       "plan_estudios": {
-        "Matemáticas": 5,
-        "Español": 5,
-        "Ciencias Naturales": 4,
-        "Ciencias Sociales": 4,
-        "Inglés": 3,
-        "Educación Física": 2,
-        "Artes": 2,
-        "Tecnología": 2,
-        "Ética": 1,
-        "Religión": 1
+        "Matemáticas": 5, "Español": 4, "Inglés": 4, "Ciencias Naturales": 4, "Ciencias Sociales": 4,
+        "Educación Física": 2, "Tecnología": 2, "Artes": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
       }
     },
     {
-      "nombre": "6C",
-      "grado": "6",
+      "nombre": "SEPTIMO A",
+      "grado": "7",
       "plan_estudios": {
-        "Matemáticas": 5,
-        "Español": 5,
-        "Ciencias Naturales": 4,
-        "Ciencias Sociales": 4,
-        "Inglés": 3,
-        "Educación Física": 2,
-        "Artes": 2,
-        "Tecnología": 2,
-        "Ética": 1,
-        "Religión": 1
+        "Matemáticas": 5, "Español": 4, "Inglés": 4, "Ciencias Naturales": 4, "Ciencias Sociales": 4,
+        "Educación Física": 2, "Tecnología": 2, "Artes": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
+      }
+    },
+    {
+      "nombre": "SEPTIMO B",
+      "grado": "7",
+      "plan_estudios": {
+        "Matemáticas": 5, "Español": 4, "Inglés": 4, "Ciencias Naturales": 4, "Ciencias Sociales": 4,
+        "Educación Física": 2, "Tecnología": 2, "Artes": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
+      }
+    },
+    {
+      "nombre": "OCTAVO A",
+      "grado": "8",
+      "plan_estudios": {
+        "Matemáticas": 5, "Español": 4, "Inglés": 4, "Ciencias Naturales": 4, "Ciencias Sociales": 4,
+        "Educación Física": 2, "Tecnología": 2, "Artes": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
+      }
+    },
+    {
+      "nombre": "OCTAVO B",
+      "grado": "8",
+      "plan_estudios": {
+        "Matemáticas": 5, "Español": 4, "Inglés": 4, "Ciencias Naturales": 4, "Ciencias Sociales": 4,
+        "Educación Física": 2, "Tecnología": 2, "Artes": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
+      }
+    },
+    {
+      "nombre": "NOVENO A",
+      "grado": "9",
+      "plan_estudios": {
+        "Matemáticas": 5, "Español": 4, "Inglés": 4, "Ciencias Naturales": 4, "Ciencias Sociales": 4,
+        "Educación Física": 2, "Tecnología": 2, "Artes": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
+      }
+    },
+    {
+      "nombre": "NOVENO B",
+      "grado": "9",
+      "plan_estudios": {
+        "Matemáticas": 5, "Español": 4, "Inglés": 4, "Ciencias Naturales": 4, "Ciencias Sociales": 4,
+        "Educación Física": 2, "Tecnología": 2, "Artes": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
+      }
+    },
+    {
+      "nombre": "DECIMO A",
+      "grado": "10",
+      "plan_estudios": {
+        "Cálculo": 4, "Física": 3, "Química": 3, "Español y Literatura": 3, "Inglés Intensivo": 3,
+        "Filosofía": 3, "Ciencias Políticas": 2, "Educación Física": 2, "Tecnología Aplicada": 2,
+        "Investigación": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
+      }
+    },
+    {
+      "nombre": "DECIMO B",
+      "grado": "10",
+      "plan_estudios": {
+        "Cálculo": 4, "Física": 3, "Química": 3, "Español y Literatura": 3, "Inglés Intensivo": 3,
+        "Filosofía": 3, "Ciencias Políticas": 2, "Educación Física": 2, "Tecnología Aplicada": 2,
+        "Investigación": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
+      }
+    },
+    {
+      "nombre": "ONCE A",
+      "grado": "11",
+      "plan_estudios": {
+        "Cálculo": 4, "Física": 3, "Química": 3, "Español y Literatura": 3, "Inglés Intensivo": 3,
+        "Filosofía": 3, "Ciencias Políticas": 2, "Educación Física": 2, "Tecnología Aplicada": 2,
+        "Investigación": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
+      }
+    },
+    {
+      "nombre": "ONCE B",
+      "grado": "11",
+      "plan_estudios": {
+        "Cálculo": 4, "Física": 3, "Química": 3, "Español y Literatura": 3, "Inglés Intensivo": 3,
+        "Filosofía": 3, "Ciencias Políticas": 2, "Educación Física": 2, "Tecnología Aplicada": 2,
+        "Investigación": 2, "Ética": 1, "Religión": 1, "Actividad Complementaria": 1
       }
     }
   ]
