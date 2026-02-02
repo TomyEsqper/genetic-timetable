@@ -45,12 +45,19 @@ Esta es la guía definitiva para actualizar tu proyecto. Sigue estos pasos **cad
     ```
     *(Si dice "Already up to date", es normal si solo cambiaste código Python y no configuración).*
 
-3.  **Descargar las Imágenes Nuevas (Lo pesado)**
+3.  **Generar Certificados SSL (Solo la primera vez o si expiran)**
+    Como ahora usamos HTTPS, necesitamos certificados. Ejecuta esto una vez:
+    ```bash
+    mkdir -p nginx/certs
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout nginx/certs/selfsigned.key -out nginx/certs/selfsigned.crt -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+    ```
+
+4.  **Descargar las Imágenes Nuevas (Lo pesado)**
     ```bash
     docker compose -f docker-compose.prod.yml pull
     ```
 
-4.  **Reiniciar los Contenedores**
+5.  **Reiniciar los Contenedores**
     ```bash
     docker compose -f docker-compose.prod.yml up -d
     ```

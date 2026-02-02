@@ -199,6 +199,9 @@ celerybeat.pid
 # Rope project settings
 .ropeproject
 
+# Security
+nginx/certs/
+
 # mkdocs documentation
 /site
 
