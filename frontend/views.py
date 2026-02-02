@@ -6,7 +6,6 @@ from django.db.models import Count, Q
 from django.template.loader import get_template
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
 from xhtml2pdf import pisa
 from django.http import HttpResponse
 from horarios.models import Curso, Profesor, Aula, Horario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, BloqueHorario
@@ -506,7 +505,6 @@ def limpiar_cache_progreso(request):
             'mensaje': f'Error: {str(e)}'
         }, status=500)
 
-@csrf_exempt
 @require_http_methods(["POST"])
 def mover_horario_ajax(request):
     """Mueve un horario a otro día/bloque vía AJAX (con soporte para SWAP)"""
