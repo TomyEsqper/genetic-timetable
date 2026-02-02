@@ -41,8 +41,10 @@ schema_view = get_schema_view(
    permission_classes=[permissions.AllowAny],
 )
 
+import os
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path(os.environ.get('ADMIN_URL', 'admin/'), admin.site.urls),
 
     # Frontend externo para el coordinador
     path('', include('frontend.urls')),
