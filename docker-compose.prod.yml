@@ -4,7 +4,7 @@ services:
   web:
     build: .
     image: ${DOCKER_HUB_USER:-genetic}/timetable-web:latest
-    command: gunicorn colegio.wsgi:application --bind 0.0.0.0:8000
+    command: gunicorn colegio.wsgi:application --bind 0.0.0.0:8000 --access-logfile - --error-logfile - --log-level info
     volumes:
       - .:/app
     expose:
