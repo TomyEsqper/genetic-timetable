@@ -177,7 +177,11 @@ if ENABLE_HTTPS:
     SECURE_HSTS_PRELOAD = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
-    CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://localhost').split(',')
+    CSRF_TRUSTED_ORIGINS = [
+        'https://localhost',
+        'https://52.14.216.149',
+        'http://52.14.216.149',
+    ] + os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
 else:
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
