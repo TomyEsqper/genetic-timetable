@@ -32,6 +32,29 @@
   @apply transition-all duration-200 ease-in-out;
 }
 
+/* Estilos para Drag & Drop */
+.draggable-item {
+  cursor: move;
+  @apply transition-transform duration-200 shadow-sm border border-gray-200 rounded;
+  user-select: none; /* Evitar selección de texto al arrastrar */
+  touch-action: none; /* Mejorar soporte táctil */
+}
+
+.draggable-item:active {
+  cursor: grabbing;
+  @apply opacity-75 scale-105 shadow-md;
+}
+
+.drag-over {
+  @apply bg-blue-100 ring-2 ring-blue-500 ring-inset border-dashed;
+}
+
+/* Clases de utilidad para el script JS */
+.dragging {
+  @apply opacity-50 scale-105 shadow-lg z-50;
+}
+
+
 /* Estilos para botones */
 .btn-primary {
   @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
