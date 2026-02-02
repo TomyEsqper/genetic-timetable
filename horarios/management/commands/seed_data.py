@@ -294,7 +294,22 @@ class Command(BaseCommand):
 
         # 10. Poblar CursoMateriaRequerida
         self.stdout.write('Generando requerimientos de cursos...')
-        call_command('poblar_curso_materia_requerida', force=True)
+        # call_command('poblar_curso_materia_requerida', force=True) # Comando no existe, lo hacemos manual
+        
+        # Lógica manual de sync_aux_tables._sync_curso_materia_requerida
+        curso_por_grado = {}
+        for c in Curso.objects.all().only('id','grado_id'):
+            curso_por_grado.setdefault(c.grado_id, []).append(c.id)
+            
+        rows = []
+        for mg in MateriaGrado.objects.select_related('materia').all():
+            bloques = mg.materia.bloques_por_semana
+            for curso_id in curso_por_grado.get(mg.grado_id, []):
+                rows.append(CursoMateriaRequerida(curso_id=curso_id, materia_id=mg.materia_id, bloques_requeridos=bloques))
+                
+        # Limpiar y crear
+        CursoMateriaRequerida.objects.all().delete()
+        CursoMateriaRequerida.objects.bulk_create(rows, batch_size=1000)
         
         # 11. Configurar Materia de Relleno (Asignar a todos los grados y un profesor comodín)
         self.stdout.write('Configurando materia de relleno...')
