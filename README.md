@@ -1,138 +1,122 @@
-## 🧠 Smart Schedule API – Generador Inteligente de Horarios Escolares
+# 🧠 Smart Schedule API – Generador Inteligente de Horarios Escolares
 
-API potente y flexible para la **generación automática de horarios escolares**, basada en algoritmos genéticos y pensada para integrarse en plataformas educativas multi-colegio (como Phidias, entre otras).
+API potente y flexible para la **generación automática de horarios escolares**, basada en algoritmos genéticos y arquitectura hexagonal. Diseñada para integrarse en plataformas educativas y desplegarse fácilmente con Docker.
 
 ## 🚀 Características Principales
 
-✅ Generación automática de horarios mediante algoritmos genéticos optimizados.  
-✅ Manejo de restricciones reales: materias, profesores, aulas, bloques, descansos.  
-✅ Carga masiva y consulta mediante JSON (ideal para integración de múltiples colegios).  
-✅ Exportación a Excel con formato profesional (colores, agrupaciones, etiquetas).  
-✅ Interfaz básica para coordinadores académicos.  
-✅ Seguridad integrada con **tokens JWT** y control de CORS.  
-✅ Preparada para escalar en entornos multi-colegio con subdominios.
-
----
-
-## 📚 Documentación
-
-La documentación técnica detallada se encuentra en la carpeta `/docs/`:
-
-*   [🏛️ Arquitectura Técnica](docs/01_ARCHITECTURE.md)
-*   [🧬 Explicación del Algoritmo](docs/02_ALGORITHM.md)
-*   [🛠️ Guía de Setup para Devs](docs/03_SETUP.md)
+✅ **Generación Automática**: Algoritmos genéticos (Demand-First + Hill Climbing) para optimizar horarios.
+✅ **Restricciones Reales**: Manejo de aulas fijas/especiales, disponibilidad docente, bloques contiguos, y descansos.
+✅ **Arquitectura Hexagonal**: Separación clara entre Dominio, Aplicación e Infraestructura.
+✅ **Docker Ready**: Configuración lista para desarrollo y producción con Nginx.
+✅ **Seguridad**: Autenticación JWT y configuración segura para producción.
+✅ **API RESTful**: Endpoints documentados para integración frontend/backend.
 
 ---
 
 ## ⚙️ Tecnologías Utilizadas
 
-- **Python 3.13**
-- **Django 5.2**
+- **Python 3.12+**
+- **Django 5.0.2**
 - **Django REST Framework**
-- **MySQL**
-- **PyMySQL**
-- **OpenPyXL (Excel export)**
-- **Algoritmos genéticos (lógica propia)**
-- **JWT (djangorestframework-simplejwt)**
-- **Swagger (drf-yasg)**
+- **SQLite** (Configurado para alta concurrencia en producción)
+- **Docker & Docker Compose**
+- **Nginx** (Reverse Proxy & SSL)
+- **JWT** (SimpleJWT)
+- **Pandas/NumPy** (Procesamiento de datos)
 
 ---
 
-## 🛠️ Instalación Rápida (modo desarrollo)
+## 🛠️ Instalación y Uso (Docker)
 
+La forma recomendada de ejecutar el proyecto es utilizando Docker.
+
+### 1. Clonar el repositorio
 ```bash
-git clone https://github.com/tu_usuario/genetic-timetable.git
+git clone https://github.com/tomyesqper/genetic-timetable.git
 cd genetic-timetable
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-````
-
-### Configura la base de datos en `colegio/settings.py`:
-
-```python
-DATABASES = {
-  'default': {
-    'ENGINE': 'django.db.backends.mysql',
-    'NAME': 'gestion_horarios',
-    'USER': 'tu_usuario',
-    'PASSWORD': 'tu_contraseña',
-    'HOST': 'localhost',
-    'PORT': '3306',
-  }
-}
 ```
 
-### Ejecuta las migraciones:
+### 2. Configurar variables de entorno
+Crea un archivo `.env` (o `.env.prod` para producción) basado en el ejemplo, definiendo `SECRET_KEY` y `DEBUG`.
+
+### 3. Iniciar con Docker Compose
+```bash
+# Desarrollo
+docker compose up -d --build
+
+# Producción
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+### 4. Inicializar Base de Datos
+Una vez el contenedor `web` esté corriendo:
 
 ```bash
-python manage.py migrate
-python manage.py createsuperuser
+# Migraciones
+docker compose exec web python manage.py migrate
+
+# Crear tabla de caché (Crítico para el rendimiento)
+docker compose exec web python manage.py createcachetable
+
+# (Opcional) Poblar con datos de prueba realistas
+docker compose exec web python manage.py seed_data
+
+# Crear superusuario
+docker compose exec web python manage.py createsuperuser
 ```
 
 ---
 
 ## 📡 Endpoints API Principales
 
-| Recurso         | Método | Endpoint              | Descripción                    |
-| --------------- | ------ | --------------------- | ------------------------------ |
-| Profesores      | GET    | `/api/profesores/`    | Lista de profesores            |
-| Materias        | GET    | `/api/materias/`      | Lista de materias              |
-| Cursos          | GET    | `/api/cursos/`        | Lista de cursos                |
-| Aulas           | GET    | `/api/aulas/`         | Lista de aulas                 |
-| Horarios        | GET    | `/api/horarios/`      | Consulta de horarios generados |
-| Generar Horario | POST   | `/api/generar-horario/` | Ejecuta el algoritmo genético  |
-| Autenticación   | POST   | `/api/token/`         | Login con usuario/contraseña   |
-| Token Refresh   | POST   | `/api/token/refresh/` | Renueva el token JWT           |
+| Recurso | Método | Endpoint | Descripción |
+|---------|--------|----------|-------------|
+| **Generar** | POST | `/api/generar-horario/` | Inicia el algoritmo genético (requiere auth). |
+| **Solver** | POST | `/api/engine/solve/` | Motor de cálculo puro. Recibe JSON completo, retorna horario. |
+| **Estado** | GET | `/api/estado-sistema/` | Métricas y conteo de recursos del sistema. |
+| **Validar** | GET | `/api/validar-prerrequisitos/` | Chequeo de factibilidad antes de generar. |
+| **Auth** | POST | `/api/token/` | Obtener token JWT (Login). |
+
+## 🧪 Ejemplos de Uso (JSON)
+
+Para facilitar la integración y pruebas, consulta el documento de ejemplos donde encontrarás **JSONs listos para copiar y pegar** en Postman:
+
+👉 **[Ver Ejemplos de API (Postman/JSON)](docs/API_EXAMPLES.md)**
+
+Incluye payloads para:
+*   Autenticación
+*   Motor de Cálculo (Solver)
+*   Generación de Horarios
+
 
 ---
 
-## 🔐 Seguridad
+## � Estructura del Proyecto
 
-* Todos los endpoints están protegidos con JWT (`Authorization: Bearer <token>`).
-* Soporte completo para CORS (útil para integrarse en plataformas externas).
-* Puedes configurar los dominios permitidos en `settings.py`:
+El proyecto sigue una arquitectura modular:
 
-```python
-CORS_ALLOWED_ORIGINS = [
-    "https://plataforma.tuempresa.com",
-    "https://subdominio1.tuempresa.com",
-]
-```
-
----
-
-## 🧬 Lógica Genética
-
-* Cada horario es una “solución” posible.
-* Se generan múltiples soluciones por curso/materia.
-* Se evalúan con una función de **fitness** que penaliza colisiones, duplicados o conflictos.
-* La mejor solución se guarda y exporta a Excel.
+*   **`api/`**: Vistas REST, Serializers y exposición de endpoints.
+*   **`horarios/`**: Núcleo de la lógica de negocio.
+    *   `domain/`: Modelos, validadores y reglas de negocio.
+    *   `application/`: Casos de uso y servicios (Algoritmo Genético).
+    *   `infrastructure/`: Adaptadores, exportadores y utilidades.
+    *   `management/commands/`: Scripts de gestión (`seed_data`, etc.).
+*   **`colegio/`**: Configuración principal de Django (`settings.py`).
+*   **`nginx/`**: Configuración del servidor web para producción.
 
 ---
 
-## 📦 Exportación a Excel
+## � Notas de Despliegue (AWS)
 
-* El archivo incluye:
+Para despliegue en producción (AWS EC2):
 
-  * Nombre del curso
-  * Materias por bloque
-  * Colores por materia
-  * Tiempos de descanso, almuerzo y jornada
-* Exporta automáticamente en la carpeta `exports/`.
+1.  Asegurar que `.env.prod` contenga `SECRET_KEY` segura y `DEBUG=False`.
+2.  Usar `docker-compose.prod.yml`.
+3.  Configurar certificados SSL en `nginx/certs/` (o usar Let's Encrypt).
+4.  Consultar `aws-deploy-guide.md` para pasos detallados.
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto se distribuye bajo la licencia **MIT**.
-¡Úsalo, modifícalo y mejora como desees!
-
----
-
-## 🙌 Autor
-
-Desarrollado con ❤️ por **Tomas Esquivel**
-Con propósito de escalar a plataformas académicas con múltiples colegios.
-
-
+Este proyecto es propiedad privada. Todos los derechos reservados.
