@@ -45,23 +45,46 @@ Esta es la guía definitiva para actualizar tu proyecto en AWS. Sigue estos paso
     ```
     *(Si dice "Already up to date", es normal si solo cambiaste código Python y no configuración).*
 
-3.  **Generar Certificados SSL (Solo la primera vez o si expiran)**
-    Como ahora usamos HTTPS, necesitamos certificados. Ejecuta esto una vez:
+## 4. Configuración de HTTPS y Certificados (CRÍTICO)
+
+Para que HTTPS funcione, necesitas generar los certificados SSL. Hemos creado un script para facilitar esto.
+
+1.  **Generar Certificados**:
+    Ejecuta el siguiente comando en la raíz del proyecto en tu instancia AWS:
     ```bash
-    mkdir -p nginx/certs
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout nginx/certs/selfsigned.key -out nginx/certs/selfsigned.crt -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+    chmod +x scripts/init_ssl.sh
+    ./scripts/init_ssl.sh
     ```
+    *Esto creará `nginx/certs/selfsigned.crt` y `nginx/certs/selfsigned.key`.*
 
-4.  **Descargar las Imágenes Nuevas y Reiniciar**
+2.  **Verificar Security Group (Firewall)**:
+    Asegúrate de que tu instancia EC2 tenga los siguientes puertos abiertos en el **Security Group**:
+    -   **80 (HTTP)**: 0.0.0.0/0
+    -   **443 (HTTPS)**: 0.0.0.0/0
+    *Si el puerto 443 está cerrado, HTTPS fallará y dará timeout.*
+
+## 5. Despliegue con Docker Compose
+
+La configuración ahora es dinámica. El archivo `docker-compose.prod.yml` usa la IP `52.14.216.149` por defecto, pero puedes cambiarla estableciendo la variable `PROD_IP`.
+
+```bash
+# (Opcional) Si tu IP cambia:
+# export PROD_IP=tu.nueva.ip.aws
+
+docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+### Troubleshooting HTTPS
+- Si ves una advertencia de "Sitio no seguro", es normal porque usamos un certificado autofirmado. Acepta el riesgo para continuar.
+- Si la conexión es rechazada o da timeout, verifica nuevamente el **Security Group** en AWS.
+- Si obtienes un error 500/502, revisa los logs de Nginx:
     ```bash
-    # Bajar versiones recientes
-    docker compose -f docker-compose.prod.yml pull
-
-    # Reiniciar contenedores
-    docker compose -f docker-compose.prod.yml up -d
+    docker-compose -f docker-compose.prod.yml logs nginx
     ```
 
 ---
+
 
 ## 🛠️ PARTE 3: Mantenimiento (Solo si es necesario)
 
