@@ -21,11 +21,17 @@ Implementación técnica y herramientas externas.
 - **Adapters**:
   - `exportador.py`: Generación de Excel.
   - `sistema_reportes.py`: Generación de JSONs de diagnóstico.
-- **Utils**: Logging, serialización, tareas asíncronas.
+- **Utils**: Logging estructurado (JSON), serialización, tareas asíncronas (Celery/Redis).
 
 ### 4. Interface (API/Django)
 - **Django Apps**: `api`, `colegio`, `frontend`.
 - Estas capas consumen los servicios de `application`, nunca acceden al dominio directamente si pueden evitarlo.
+
+## Infraestructura de Datos
+El sistema soporta una arquitectura híbrida de persistencia:
+- **Desarrollo Local**: SQLite (por simplicidad).
+- **Producción (Docker/AWS)**: PostgreSQL 15 + Redis 7 (con persistencia AOF).
+- **Monitoreo**: Sentry SDK integrado para trazas y alertas de error.
 
 ## Flujo de Datos Típico
 1. **API View** recibe request POST.

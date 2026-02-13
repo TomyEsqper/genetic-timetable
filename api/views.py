@@ -24,7 +24,7 @@ from .serializers import (
     CursoSerializer,
     HorarioSerializer,
     AulaSerializer,
-    SolverInputSerializer,
+    SerializadorEntradaGenerador,
 )
 
 # Nuevos imports para jobs

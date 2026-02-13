@@ -2,8 +2,8 @@
 
 ## Requisitos
 - Python 3.12+
-- SQLite (Configurado por defecto)
-- Virtualenv
+- Docker Desktop (Recomendado para PostgreSQL/Redis)
+- Virtualenv (Si desarrollas sin Docker)
 
 ## Instalación
 
@@ -17,14 +17,22 @@
    ```
 
 2. **Variables de Entorno**:
-   Crea un archivo `.env` en la raíz (ver `.env.example` si existe, o usar configuración default en `settings.py`).
+   Crea un archivo `.env` en la raíz (puedes copiar `.env.example`).
+   - Para usar **PostgreSQL** (Docker), define `DB_ENGINE=django.db.backends.postgresql`.
+   - Para usar **SQLite** (Local simple), define `DB_ENGINE=django.db.backends.sqlite3` o déjalo vacío.
 
-3. **Base de Datos**:
+3. **Iniciar Infraestructura (Docker)**:
+   Si vas a usar PostgreSQL y Redis (Recomendado):
+   ```bash
+   docker compose up -d
+   ```
+
+4. **Base de Datos (Migraciones)**:
    ```bash
    python manage.py migrate
    ```
 
-4. **Datos de Prueba (Seeding)**:
+5. **Datos de Prueba (Seeding)**:
    El sistema incluye un comando para poblar la BD con datos de prueba realistas.
    ```bash
    python manage.py seed_data

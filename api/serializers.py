@@ -40,8 +40,8 @@ class HorarioSerializer(serializers.ModelSerializer):
         fields = ['id', 'curso', 'materia', 'profesor', 'aula', 'dia', 'bloque']
 
 
-# Serializadores de entrada para el Motor de Cálculo (Solver)
-class InputDisponibilidadSerializer(serializers.Serializer):
+# Serializadores de entrada para el Motor de Cálculo (Generador)
+class SerializadorDisponibilidadEntrada(serializers.Serializer):
     """
     Define un rango de bloques libres para un profesor.
     Ej: Lunes, bloques 1 al 6.
@@ -50,25 +50,25 @@ class InputDisponibilidadSerializer(serializers.Serializer):
     bloque_inicio = serializers.IntegerField()
     bloque_fin = serializers.IntegerField()
 
-class InputProfesorSerializer(serializers.Serializer):
+class SerializadorProfesorEntrada(serializers.Serializer):
     """
-    Datos de entrada para crear un profesor en el Solver.
+    Datos de entrada para crear un profesor en el Generador.
     Incluye su disponibilidad y qué materias puede dictar.
     """
     id_externo = serializers.CharField(required=False)
     nombre = serializers.CharField()
-    disponibilidad = InputDisponibilidadSerializer(many=True, required=False)
+    disponibilidad = SerializadorDisponibilidadEntrada(many=True, required=False)
     materias_capaces = serializers.ListField(child=serializers.CharField(), required=False)
 
-class InputMateriaSerializer(serializers.Serializer):
+class SerializadorMateriaEntrada(serializers.Serializer):
     """
-    Definición de materia para el solver.
+    Definición de materia para el generador.
     """
     id_externo = serializers.CharField(required=False)
     nombre = serializers.CharField()
     aula_especial = serializers.BooleanField(default=False)
 
-class InputCursoSerializer(serializers.Serializer):
+class SerializadorCursoEntrada(serializers.Serializer):
     """
     Definición de curso y su carga académica requerida.
     plan_estudios: Diccionario { "Matemáticas": 5, "Lengua": 4 }
@@ -78,12 +78,12 @@ class InputCursoSerializer(serializers.Serializer):
     grado = serializers.CharField()
     plan_estudios = serializers.DictField(child=serializers.IntegerField())
 
-class SolverInputSerializer(serializers.Serializer):
+class SerializadorEntradaGenerador(serializers.Serializer):
     """
     Payload completo para el endpoint /solver/.
     Permite generar horarios desde cero sin usar la base de datos persistente (modo stateless).
     """
     configuracion = serializers.DictField()
-    profesores = InputProfesorSerializer(many=True)
-    materias = InputMateriaSerializer(many=True)
-    cursos = InputCursoSerializer(many=True)
+    profesores = SerializadorProfesorEntrada(many=True)
+    materias = SerializadorMateriaEntrada(many=True)
+    cursos = SerializadorCursoEntrada(many=True)

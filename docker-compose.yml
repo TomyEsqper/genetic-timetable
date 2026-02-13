@@ -10,9 +10,15 @@ services:
       - DJANGO_DEBUG=True
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - DB_ENGINE=django.db.backends.sqlite3
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=genetic_timetable
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
     depends_on:
       - redis
+      - db
 
   celery:
     build: .
@@ -23,13 +29,37 @@ services:
       - DJANGO_DEBUG=True
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - DB_ENGINE=django.db.backends.sqlite3
-      - C_FORCE_ROOT=1  # Necesario porque el contenedor corre como root
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=genetic_timetable
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - C_FORCE_ROOT=1
     depends_on:
       - redis
       - web
+      - db
 
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=genetic_timetable
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
+  redis_data:

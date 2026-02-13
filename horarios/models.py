@@ -748,28 +748,4 @@ class TrackerCorrida(models.Model):
         corridas = cls.objects.filter(exito=True)
         return [c for c in corridas if c.es_reproducible()]
 
-class Run(models.Model):
-	params_json = models.JSONField()
-	dataset_hash = models.CharField(max_length=64)
-	started_at = models.DateTimeField(auto_now_add=True)
-	ended_at = models.DateTimeField(null=True, blank=True)
-	status = models.CharField(max_length=20, choices=[('queued','queued'),('running','running'),('done','done'),('failed','failed')], default='queued')
-	best_obj = models.FloatField(default=0.0)
-	log_path = models.CharField(max_length=255, blank=True)
-	class Meta:
-		indexes = [
-			models.Index(fields=['started_at']),
-			models.Index(fields=['status']),
-		]
 
-class RunMetric(models.Model):
-	run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name='metrics')
-	gen = models.IntegerField()
-	best = models.FloatField()
-	avg = models.FloatField()
-	fill_pct = models.FloatField()
-	conflicts = models.IntegerField(default=0)
-	t_s = models.FloatField()
-	class Meta:
-		unique_together = ['run', 'gen']
-		indexes = [models.Index(fields=['run','gen'])]

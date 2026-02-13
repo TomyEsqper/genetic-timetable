@@ -18,7 +18,9 @@ API potente y flexible para la **generación automática de horarios escolares**
 - **Python 3.12+**
 - **Django 5.0.2**
 - **Django REST Framework**
-- **SQLite** (Configurado para alta concurrencia en producción)
+- **PostgreSQL 15** (Producción) / **SQLite** (Desarrollo local)
+- **Redis** (Cola de tareas Celery + Caché)
+- **Sentry** (Monitoreo de errores en tiempo real)
 - **Docker & Docker Compose**
 - **Nginx** (Reverse Proxy & SSL)
 - **JWT** (SimpleJWT)
