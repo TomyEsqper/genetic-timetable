@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import random
 import logging
 import time
+import sentry_sdk
 
 from horarios.models import (
     Curso, Materia, Profesor, BloqueHorario, ConfiguracionColegio,
@@ -72,8 +73,15 @@ class GeneradorDemandFirst:
         inicio_tiempo = time.time()
         logger.info("Iniciando generación demand-first")
         
+        # Sentry Context
+        sentry_sdk.set_tag("algoritmo", "demand_first")
+        if semilla:
+            sentry_sdk.set_tag("semilla", semilla)
+        
         # 1. Validar precondiciones
-        resultado_factibilidad = self.validador_precondiciones.validar_factibilidad_completa()
+        with sentry_sdk.start_span(op="validation", description="Validar Precondiciones"):
+            resultado_factibilidad = self.validador_precondiciones.validar_factibilidad_completa()
+        
         if not resultado_factibilidad.es_factible:
             return {
                 'exito': False,
@@ -86,14 +94,16 @@ class GeneradorDemandFirst:
         max_reintentos = kwargs.get('max_reintentos_construccion', 10)
         estado_inicial = None
         
-        for i in range(max_reintentos):
-            logger.info(f"Intento de construcción {i + 1}/{max_reintentos}")
-            estado_inicial = self._construccion_inicial()
-            if estado_inicial.es_valido:
-                logger.info(f"Construcción exitosa en intento {i + 1}")
-                break
-            else:
-                logger.warning(f"Intento {i + 1} fallido: {len(estado_inicial.cursos_completos)}/{Curso.objects.count()} cursos completos")
+        with sentry_sdk.start_span(op="algorithm.construction", description="Construcción Inicial"):
+            for i in range(max_reintentos):
+                with sentry_sdk.start_span(op="algorithm.construction.attempt", description=f"Intento {i+1}"):
+                    logger.info(f"Intento de construcción {i + 1}/{max_reintentos}")
+                    estado_inicial = self._construccion_inicial()
+                    if estado_inicial.es_valido:
+                        logger.info(f"Construcción exitosa en intento {i + 1}")
+                        break
+                    else:
+                        logger.warning(f"Intento {i + 1} fallido: {len(estado_inicial.cursos_completos)}/{Curso.objects.count()} cursos completos")
         
         if not estado_inicial or not estado_inicial.es_valido:
             return {
@@ -104,11 +114,13 @@ class GeneradorDemandFirst:
             }
         
         # 3. Reparación y mejora iterativa
-        estado_final = self._mejora_iterativa(estado_inicial, kwargs)
+        with sentry_sdk.start_span(op="algorithm.improvement", description="Mejora Iterativa"):
+            estado_final = self._mejora_iterativa(estado_inicial, kwargs)
         
         # 4. Validación final
-        horarios_dict = self._convertir_a_diccionarios(estado_final.slots)
-        validacion_final = self.validador_reglas.validar_solucion_completa(horarios_dict)
+        with sentry_sdk.start_span(op="validation", description="Validación Final"):
+            horarios_dict = self._convertir_a_diccionarios(estado_final.slots)
+            validacion_final = self.validador_reglas.validar_solucion_completa(horarios_dict)
         
         tiempo_total = time.time() - inicio_tiempo
         

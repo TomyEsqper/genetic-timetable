@@ -13,6 +13,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from pathlib import Path
 import numpy as np
+import sentry_sdk
 
 @dataclass
 class MetricasFase:
@@ -174,10 +175,22 @@ class LoggerEstructurado:
         self.logger.error(f"Error: {error} - Contexto: {contexto}")
     
     def _escribir_log(self, data: Dict):
-        """Escribe un log en formato JSON"""
+        """Escribe un log en formato JSON y lo envía a Sentry como breadcrumb"""
         try:
+            # 1. Escribir en archivo local
             with open(self.archivo_log, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(data, ensure_ascii=False, default=str) + '\n')
+            
+            # 2. Enviar a Sentry (Breadcrumb para trazabilidad)
+            category = data.get("evento", "log")
+            level = "error" if category == "error" else "info"
+            sentry_sdk.add_breadcrumb(
+                category=category,
+                message=data.get("mensaje") or f"Evento: {category}",
+                data=data,
+                level=level
+            )
+
         except Exception as e:
             self.logger.error(f"No se pudo escribir en archivo de log: {e}")
 

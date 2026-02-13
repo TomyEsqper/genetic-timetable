@@ -39,7 +39,14 @@ cd genetic-timetable
 ```
 
 ### 2. Configurar variables de entorno
-Crea un archivo `.env` (o `.env.prod` para producción) basado en el ejemplo, definiendo `SECRET_KEY` y `DEBUG`.
+Crea un archivo `.env` (o `.env.prod` para producción) basado en el ejemplo.
+
+**Variables Críticas:**
+- `SECRET_KEY`: Llave criptográfica de Django.
+- `DEBUG`: `True` para local, `False` para producción.
+- `SENTRY_DSN`: URL de proyecto Sentry para monitoreo de errores (opcional).
+- `DB_ENGINE`: `django.db.backends.postgresql` (recomendado) o `sqlite3`.
+- `CELERY_BROKER_URL`: URL de Redis para colas de tareas.
 
 ### 3. Iniciar con Docker Compose
 ```bash
