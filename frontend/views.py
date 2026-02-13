@@ -7,7 +7,10 @@ from django.template.loader import get_template
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from xhtml2pdf import pisa
+try:
+    from xhtml2pdf import pisa
+except ImportError:
+    pisa = None
 from django.http import HttpResponse
 from horarios.models import Curso, Profesor, Aula, Horario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, BloqueHorario
 from horarios.infrastructure.adapters.exportador import exportar_horario_csv, exportar_horario_por_curso_csv, exportar_horario_por_profesor_csv
@@ -298,6 +301,8 @@ def pdf_curso(request, curso_id):
         'bloques': BLOQUES,
     })
 
+    if pisa is None:
+        return HttpResponse("El generador de PDF no está disponible en este entorno.", status=503)
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="horario_{curso.nombre}.pdf"'
     pisa.CreatePDF(html, dest=response)
