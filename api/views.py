@@ -13,6 +13,9 @@ from typing import List, Dict, Any
 
 from horarios.models import Profesor, Materia, Curso, Horario, Aula, BloqueHorario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, ConfiguracionColegio
 from horarios.application.services.generador_demand_first import GeneradorDemandFirst
+# TODO: Implementar o eliminar RegenerarParcialView si ya no se usa GA puro
+# from horarios.application.services.generador_genetico import generar_horarios_genetico, crear_gestor_slots_bloqueados
+
 from horarios.domain.validators.validador_precondiciones import ValidadorPrecondiciones
 from horarios.domain.validators.validadores import prevalidar_factibilidad_dataset, validar_antes_de_persistir, construir_semana_tipo_desde_bd
 from horarios.infrastructure.utils.logging_estructurado import crear_logger_estructurado
@@ -25,16 +28,18 @@ from .serializers import (
     HorarioSerializer,
     AulaSerializer,
     SerializadorEntradaGenerador,
+    SerializadorEntradaGenerador as SolverInputSerializer,
 )
 
 # Nuevos imports para jobs
 try:
     from celery.result import AsyncResult
-    from horarios.infrastructure.utils.tasks import generar_horarios_async, CELERY_AVAILABLE
+    from horarios.infrastructure.utils.tasks import generar_horarios_async, CELERY_AVAILABLE, ejecutar_generacion_horarios
 except Exception:
     CELERY_AVAILABLE = False
     generar_horarios_async = None
     AsyncResult = None
+    ejecutar_generacion_horarios = None
 
 logger = logging.getLogger(__name__)
 
@@ -608,6 +613,12 @@ class JobsCancelarView(APIView):
 class RegenerarParcialView(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request):
+        return Response(
+            {"status": "error", "mensaje": "Funcionalidad deprecada en favor de Demand-First"},
+            status=status.HTTP_501_NOT_IMPLEMENTED
+        )
+        # Código antiguo deprecado
+        """
         data = request.data or {}
         cursos_objetivo = data.get('curso_ids', [])
         preview = bool(data.get('preview', True))
@@ -647,6 +658,7 @@ class RegenerarParcialView(APIView):
         added = nuevos_set - actuales_set
         removed = actuales_set - nuevos_set
         return {'added': list(added), 'removed': list(removed)}
+        """
 
 class ExportCursoView(APIView):
     permission_classes = [IsAuthenticated]

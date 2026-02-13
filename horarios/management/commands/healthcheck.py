@@ -12,6 +12,7 @@ class Command(BaseCommand):
         self.stdout.write('Iniciando chequeo de salud...')
         
         # 1. Verificar Base de Datos
+        start_time = time.time()
         db_conn = connections['default']
         try:
             db_conn.cursor()
@@ -19,6 +20,8 @@ class Command(BaseCommand):
         except OperationalError:
             self.stdout.write(self.style.ERROR('✗ Base de Datos: Fallo de conexión'))
             exit(1)
+        end_time = time.time()
+        self.stdout.write(self.style.INFO(f'⏱ Tiempo de conexión a DB: {end_time - start_time:.2f} segundos'))
 
         # 2. Verificar Redis
         try:
