@@ -173,7 +173,6 @@ archive/**/*.md
 
 # Documentación movida
 docs/README_*.md
-docs/*.md
 
 # Celery
 celerybeat-schedule
