@@ -83,11 +83,22 @@ class GeneradorDemandFirst:
             }
         
         # 2. Construcción inicial demand-first
-        estado_inicial = self._construccion_inicial()
-        if not estado_inicial.es_valido:
+        max_reintentos = kwargs.get('max_reintentos_construccion', 10)
+        estado_inicial = None
+        
+        for i in range(max_reintentos):
+            logger.info(f"Intento de construcción {i + 1}/{max_reintentos}")
+            estado_inicial = self._construccion_inicial()
+            if estado_inicial.es_valido:
+                logger.info(f"Construcción exitosa en intento {i + 1}")
+                break
+            else:
+                logger.warning(f"Intento {i + 1} fallido: {len(estado_inicial.cursos_completos)}/{Curso.objects.count()} cursos completos")
+        
+        if not estado_inicial or not estado_inicial.es_valido:
             return {
                 'exito': False,
-                'razon': 'No se pudo construir solución inicial válida',
+                'razon': 'No se pudo construir solución inicial válida tras varios intentos',
                 'estado': estado_inicial,
                 'tiempo_total': time.time() - inicio_tiempo
             }
@@ -146,8 +157,12 @@ class GeneradorDemandFirst:
         profesores_ocupados = set() # Set of (profesor_id, dia, bloque)
         materias_cumplidas = defaultdict(int)
         
+        # Procesar cursos en orden aleatorio para evitar sesgos
+        cursos = list(Curso.objects.all())
+        self.random.shuffle(cursos)
+        
         # Procesar cada curso
-        for curso in Curso.objects.all():
+        for curso in cursos:
             logger.debug(f"Procesando curso {curso.nombre}")
             
             # 1. Asignar materias obligatorias
@@ -217,6 +232,18 @@ class GeneradorDemandFirst:
             for mg in mgs:
                 requerimientos.append((mg.materia, mg.materia.bloques_por_semana))
         
+        # Ordenar requerimientos por heurística:
+        # 1. Menos profesores aptos (más restrictivo) -> Primero
+        # 2. Más bloques requeridos (más difícil de encajar) -> Primero
+        # Esto ayuda a que materias como 'Actividad Complementaria' (pocos profes) se asignen antes
+        requerimientos_con_score = []
+        for materia, bloques in requerimientos:
+            num_profesores = Profesor.objects.filter(materiaprofesor__materia=materia).count()
+            requerimientos_con_score.append((materia, bloques, num_profesores))
+        
+        requerimientos_con_score.sort(key=lambda x: (x[2], -x[1]))
+        requerimientos = [(m, b) for m, b, _ in requerimientos_con_score]
+
         # Crear lista de slots disponibles
         slots_disponibles = []
         for dia in self.config_colegio['dias_clase']:
@@ -226,6 +253,9 @@ class GeneradorDemandFirst:
         self.random.shuffle(slots_disponibles)
         
         # Asignar cada materia obligatoria
+        # [DEBUG] Log order
+        logger.debug(f"Orden de asignación para {curso.nombre}: {[m.nombre for m, _ in requerimientos]}")
+        
         for materia, bloques_requeridos in requerimientos:
             # Obtener profesores aptos
             profesores_aptos = list(Profesor.objects.filter(materiaprofesor__materia=materia))
@@ -249,7 +279,7 @@ class GeneradorDemandFirst:
                 
                 # Buscar profesor disponible
                 profesor_asignado = self._buscar_profesor_disponible(
-                    profesores_aptos, dia, bloque, profesores_ocupados
+                    profesores_aptos, dia, bloque, profesores_ocupados, materia_nombre=materia.nombre
                 )
                 
                 if profesor_asignado:
@@ -320,7 +350,7 @@ class GeneradorDemandFirst:
             
             # Buscar profesor disponible
             profesor_asignado = self._buscar_profesor_disponible(
-                profesores_aptos, dia, bloque, profesores_ocupados
+                profesores_aptos, dia, bloque, profesores_ocupados, materia_nombre=materia_relleno.nombre
             )
             
             if profesor_asignado:
@@ -345,17 +375,22 @@ class GeneradorDemandFirst:
         
         return slots_relleno
     
-    def _buscar_profesor_disponible(self, profesores_aptos: List[Profesor], dia: str, bloque: int, profesores_ocupados: set) -> Optional[Profesor]:
-        """Busca un profesor disponible para un slot específico"""
+    def _buscar_profesor_disponible(self, profesores_aptos: List[Profesor], dia: str, bloque: int, profesores_ocupados: set, materia_nombre: str = "") -> Optional[Profesor]:
+        """
+        Busca un profesor disponible mezclando la lista para variabilidad.
+        """
         profesores_shuffled = profesores_aptos.copy()
         self.random.shuffle(profesores_shuffled)
         
+        if not profesores_shuffled:
+            return None
+
         for profesor in profesores_shuffled:
-            # Verificar que no esté ocupado en este slot
+            # Verificar si ya está ocupado en este slot (cache local de la iteración)
             if (profesor.id, dia, bloque) in profesores_ocupados:
                 continue
             
-            # Verificar disponibilidad
+            # Verificar disponibilidad real (cache global / DB)
             if self._profesor_disponible(profesor, dia, bloque):
                 return profesor
         

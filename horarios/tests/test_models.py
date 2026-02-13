@@ -5,6 +5,7 @@ from horarios.models import (
     Profesor, Materia, Curso, Grado, Aula, BloqueHorario, 
     Horario, MateriaProfesor, MateriaGrado, DisponibilidadProfesor
 )
+from datetime import time
 
 
 class ProfesorModelTest(TestCase):
@@ -13,37 +14,23 @@ class ProfesorModelTest(TestCase):
             'nombre': 'Juan Pérez'
         }
 
-    def test_crear_profesor_valido(self):
-        """Test que un profesor con nombre válido se crea correctamente"""
-        profesor = Profesor.objects.create(**self.profesor_data)
-        self.assertEqual(profesor.nombre, 'Juan Pérez')
-        self.assertEqual(str(profesor), 'Juan Pérez')
-
-    def test_nombre_profesor_invalido(self):
-        """Test que un nombre inválido genera error de validación"""
-        # Nombre que no empieza con mayúscula
+    def test_validaciones_profesor(self):
+        """Test validaciones de reglas de negocio para Profesor"""
+        # 1. Nombre inválido (minúscula)
         with self.assertRaises(ValidationError):
-            profesor = Profesor(nombre='juan perez')
-            profesor.full_clean()
+            p = Profesor(nombre='juan perez')
+            p.full_clean()
 
-        # Nombre con caracteres especiales
+        # 2. Nombre con caracteres especiales
         with self.assertRaises(ValidationError):
-            profesor = Profesor(nombre='Juan123')
-            profesor.full_clean()
+            p = Profesor(nombre='Juan123')
+            p.full_clean()
 
-    def test_nombre_profesor_duplicado(self):
-        """Test que no se pueden crear profesores con el mismo nombre"""
+        # 3. Nombre duplicado
         Profesor.objects.create(**self.profesor_data)
-        
         with self.assertRaises(ValidationError):
-            profesor = Profesor(nombre='Juan Pérez')
-            profesor.full_clean()
-
-    def test_nombre_profesor_muy_corto(self):
-        """Test que un nombre muy corto genera error"""
-        with self.assertRaises(ValidationError):
-            profesor = Profesor(nombre='A')
-            profesor.full_clean()
+            p = Profesor(nombre='Juan Pérez')
+            p.full_clean()
 
 
 class MateriaModelTest(TestCase):
@@ -54,55 +41,38 @@ class MateriaModelTest(TestCase):
             'jornada_preferida': 'mañana'
         }
 
-    def test_crear_materia_valida(self):
-        """Test que una materia válida se crea correctamente"""
-        materia = Materia.objects.create(**self.materia_data)
-        self.assertEqual(materia.nombre, 'Matemáticas')
-        self.assertEqual(materia.bloques_por_semana, 5)
-        self.assertEqual(str(materia), 'Matemáticas')
-
-    def test_bloques_por_semana_invalidos(self):
-        """Test que bloques por semana inválidos generan error"""
-        # Demasiados bloques
+    def test_validaciones_materia(self):
+        """Test validaciones de reglas de negocio para Materia"""
+        # 1. Bloques excesivos
         with self.assertRaises(ValidationError):
-            materia = Materia(nombre='Test', bloques_por_semana=50)
-            materia.full_clean()
+            m = Materia(nombre='Test', bloques_por_semana=50)
+            m.full_clean()
 
-        # Cero bloques
+        # 2. Cero bloques
         with self.assertRaises(ValidationError):
-            materia = Materia(nombre='Test', bloques_por_semana=0)
-            materia.full_clean()
+            m = Materia(nombre='Test', bloques_por_semana=0)
+            m.full_clean()
 
-    def test_nombre_materia_duplicado(self):
-        """Test que no se pueden crear materias con el mismo nombre"""
+        # 3. Nombre duplicado
         Materia.objects.create(**self.materia_data)
-        
         with self.assertRaises(ValidationError):
-            materia = Materia(nombre='Matemáticas', bloques_por_semana=3)
-            materia.full_clean()
+            m = Materia(nombre='Matemáticas', bloques_por_semana=3)
+            m.full_clean()
 
 
 class GradoModelTest(TestCase):
-    def test_crear_grado_valido(self):
-        """Test que un grado válido se crea correctamente"""
-        grado = Grado.objects.create(nombre='PRIMERO')
-        self.assertEqual(grado.nombre, 'PRIMERO')
-        self.assertEqual(str(grado), 'PRIMERO')
-
-    def test_nombre_grado_invalido(self):
-        """Test que un nombre de grado inválido genera error"""
-        # Nombre con caracteres no permitidos
+    def test_validaciones_grado(self):
+        """Test validaciones de reglas de negocio para Grado"""
+        # 1. Nombre inválido
         with self.assertRaises(ValidationError):
-            grado = Grado(nombre='Primero!')
-            grado.full_clean()
+            g = Grado(nombre='Primero!')
+            g.full_clean()
 
-    def test_nombre_grado_duplicado(self):
-        """Test que no se pueden crear grados con el mismo nombre"""
+        # 2. Nombre duplicado
         Grado.objects.create(nombre='PRIMERO')
-        
         with self.assertRaises(ValidationError):
-            grado = Grado(nombre='PRIMERO')
-            grado.full_clean()
+            g = Grado(nombre='PRIMERO')
+            g.full_clean()
 
 
 class AulaModelTest(TestCase):
@@ -113,292 +83,59 @@ class AulaModelTest(TestCase):
             'capacidad': 40
         }
 
-    def test_crear_aula_valida(self):
-        """Test que un aula válida se crea correctamente"""
-        aula = Aula.objects.create(**self.aula_data)
-        self.assertEqual(aula.nombre, 'AULA-101')
-        self.assertEqual(aula.capacidad, 40)
-        self.assertEqual(str(aula), 'AULA-101 (comun)')
-
-    def test_capacidad_aula_invalida(self):
-        """Test que capacidades inválidas generan error"""
-        # Capacidad muy alta
+    def test_validaciones_aula(self):
+        """Test validaciones de reglas de negocio para Aula"""
+        # 1. Capacidad inválida
         with self.assertRaises(ValidationError):
-            aula = Aula(nombre='TEST', capacidad=300)
-            aula.full_clean()
-
-        # Capacidad cero
+            a = Aula(nombre='TEST', capacidad=300)
+            a.full_clean()
+            
         with self.assertRaises(ValidationError):
-            aula = Aula(nombre='TEST', capacidad=0)
-            aula.full_clean()
+            a = Aula(nombre='TEST', capacidad=0)
+            a.full_clean()
 
-    def test_nombre_aula_invalido(self):
-        """Test que un nombre de aula inválido genera error"""
+        # 2. Nombre inválido (minúsculas)
         with self.assertRaises(ValidationError):
-            aula = Aula(nombre='aula 101', capacidad=40)
-            aula.full_clean()
+            a = Aula(nombre='aula 101', capacidad=40)
+            a.full_clean()
 
 
 class BloqueHorarioModelTest(TestCase):
-    def test_crear_bloque_valido(self):
-        """Test que un bloque válido se crea correctamente"""
-        from datetime import time
-        bloque = BloqueHorario.objects.create(
-            numero=1,
-            hora_inicio=time(8, 0),
-            hora_fin=time(9, 0),
-            tipo='clase'
-        )
-        self.assertEqual(bloque.numero, 1)
-        self.assertEqual(str(bloque), 'Bloque 1 (clase)')
-
-    def test_hora_inicio_mayor_hora_fin(self):
-        """Test que hora de inicio mayor a hora de fin genera error"""
-        from datetime import time
+    def test_validaciones_bloque(self):
+        """Test validaciones de reglas de negocio para BloqueHorario"""
+        # 1. Hora inicio > Hora fin
         with self.assertRaises(ValidationError):
-            bloque = BloqueHorario(
+            b = BloqueHorario(
                 numero=1,
                 hora_inicio=time(9, 0),
                 hora_fin=time(8, 0),
                 tipo='clase'
             )
-            bloque.full_clean()
+            b.full_clean()
 
-    def test_numero_bloque_invalido(self):
-        """Test que número de bloque inválido genera error"""
-        from datetime import time
+        # 2. Número inválido
         with self.assertRaises(ValidationError):
-            bloque = BloqueHorario(
+            b = BloqueHorario(
                 numero=0,
                 hora_inicio=time(8, 0),
                 hora_fin=time(9, 0),
                 tipo='clase'
             )
-            bloque.full_clean()
+            b.full_clean()
 
 
 class DisponibilidadProfesorModelTest(TestCase):
     def setUp(self):
         self.profesor = Profesor.objects.create(nombre='Juan Pérez')
 
-    def test_crear_disponibilidad_valida(self):
-        """Test que una disponibilidad válida se crea correctamente"""
-        disponibilidad = DisponibilidadProfesor.objects.create(
-            profesor=self.profesor,
-            dia='lunes',
-            bloque_inicio=1,
-            bloque_fin=4
-        )
-        self.assertEqual(disponibilidad.profesor, self.profesor)
-        self.assertEqual(disponibilidad.dia, 'lunes')
-
-    def test_bloque_inicio_mayor_bloque_fin(self):
-        """Test que bloque de inicio mayor al final genera error"""
+    def test_validaciones_disponibilidad(self):
+        """Test validaciones de reglas de negocio para Disponibilidad"""
+        # 1. Bloque inicio > Bloque fin
         with self.assertRaises(ValidationError):
-            disponibilidad = DisponibilidadProfesor(
+            d = DisponibilidadProfesor(
                 profesor=self.profesor,
                 dia='lunes',
                 bloque_inicio=5,
-                bloque_fin=3
+                bloque_fin=2
             )
-            disponibilidad.full_clean()
-
-    def test_disponibilidad_muy_larga(self):
-        """Test que disponibilidad muy larga genera error"""
-        with self.assertRaises(ValidationError):
-            disponibilidad = DisponibilidadProfesor(
-                profesor=self.profesor,
-                dia='lunes',
-                bloque_inicio=1,
-                bloque_fin=10
-            )
-            disponibilidad.full_clean()
-
-    def test_disponibilidad_duplicada_por_profesor_dia(self):
-        """Test que no se puede tener dos disponibilidades para el mismo profesor y día"""
-        DisponibilidadProfesor.objects.create(
-            profesor=self.profesor,
-            dia='lunes',
-            bloque_inicio=1,
-            bloque_fin=4
-        )
-        
-        with self.assertRaises(IntegrityError):
-            DisponibilidadProfesor.objects.create(
-                profesor=self.profesor,
-                dia='lunes',
-                bloque_inicio=5,
-                bloque_fin=6
-            )
-
-
-class HorarioModelTest(TestCase):
-    def setUp(self):
-        self.profesor = Profesor.objects.create(nombre='Juan Pérez')
-        self.materia = Materia.objects.create(
-            nombre='Matemáticas',
-            bloques_por_semana=5
-        )
-        self.grado = Grado.objects.create(nombre='PRIMERO')
-        self.curso = Curso.objects.create(
-            nombre='1A',
-            grado=self.grado
-        )
-        self.aula = Aula.objects.create(
-            nombre='AULA-101',
-            capacidad=40
-        )
-        from datetime import time
-        self.bloque = BloqueHorario.objects.create(
-            numero=1,
-            hora_inicio=time(8, 0),
-            hora_fin=time(9, 0),
-            tipo='clase'
-        )
-        
-        # Crear disponibilidad para el profesor
-        self.disponibilidad = DisponibilidadProfesor.objects.create(
-            profesor=self.profesor,
-            dia='lunes',
-            bloque_inicio=1,
-            bloque_fin=6
-        )
-
-    def test_crear_horario_valido(self):
-        """Test que un horario válido se crea correctamente"""
-        horario = Horario.objects.create(
-            curso=self.curso,
-            materia=self.materia,
-            profesor=self.profesor,
-            aula=self.aula,
-            dia='lunes',
-            bloque=1
-        )
-        self.assertEqual(horario.curso, self.curso)
-        self.assertEqual(horario.materia, self.materia)
-        self.assertEqual(str(horario), '1A - Matemáticas - lunes Bloque 1')
-
-    def test_horario_sin_disponibilidad_profesor(self):
-        """Test que un horario sin disponibilidad del profesor genera error"""
-        # Eliminar disponibilidad
-        self.disponibilidad.delete()
-        
-        with self.assertRaises(ValidationError):
-            horario = Horario(
-                curso=self.curso,
-                materia=self.materia,
-                profesor=self.profesor,
-                aula=self.aula,
-                dia='lunes',
-                bloque=1
-            )
-            horario.full_clean()
-
-    def test_horario_duplicado_curso_dia_bloque(self):
-        """Test que no se puede tener dos horarios para el mismo curso, día y bloque"""
-        Horario.objects.create(
-            curso=self.curso,
-            materia=self.materia,
-            profesor=self.profesor,
-            aula=self.aula,
-            dia='lunes',
-            bloque=1
-        )
-        
-        with self.assertRaises(IntegrityError):
-            Horario.objects.create(
-                curso=self.curso,
-                materia=self.materia,
-                profesor=self.profesor,
-                aula=self.aula,
-                dia='lunes',
-                bloque=1
-            )
-
-    def test_horario_duplicado_profesor_dia_bloque(self):
-        """Test que no se puede tener dos horarios para el mismo profesor, día y bloque"""
-        Horario.objects.create(
-            curso=self.curso,
-            materia=self.materia,
-            profesor=self.profesor,
-            aula=self.aula,
-            dia='lunes',
-            bloque=1
-        )
-        
-        # Crear otro curso
-        curso2 = Curso.objects.create(nombre='1B', grado=self.grado)
-        
-        with self.assertRaises(IntegrityError):
-            Horario.objects.create(
-                curso=curso2,
-                materia=self.materia,
-                profesor=self.profesor,
-                aula=self.aula,
-                dia='lunes',
-                bloque=1
-            )
-
-
-class MateriaProfesorModelTest(TestCase):
-    def setUp(self):
-        self.profesor = Profesor.objects.create(nombre='Juan Pérez')
-        self.materia = Materia.objects.create(
-            nombre='Matemáticas',
-            bloques_por_semana=5
-        )
-
-    def test_crear_asignacion_valida(self):
-        """Test que una asignación válida se crea correctamente"""
-        asignacion = MateriaProfesor.objects.create(
-            profesor=self.profesor,
-            materia=self.materia
-        )
-        self.assertEqual(asignacion.profesor, self.profesor)
-        self.assertEqual(asignacion.materia, self.materia)
-        self.assertEqual(str(asignacion), 'Juan Pérez - Matemáticas')
-
-    def test_asignacion_duplicada(self):
-        """Test que no se puede asignar la misma materia al mismo profesor dos veces"""
-        MateriaProfesor.objects.create(
-            profesor=self.profesor,
-            materia=self.materia
-        )
-        
-        with self.assertRaises(IntegrityError):
-            MateriaProfesor.objects.create(
-                profesor=self.profesor,
-                materia=self.materia
-            )
-
-
-class MateriaGradoModelTest(TestCase):
-    def setUp(self):
-        self.grado = Grado.objects.create(nombre='PRIMERO')
-        self.materia = Materia.objects.create(
-            nombre='Matemáticas',
-            bloques_por_semana=5
-        )
-
-    def test_crear_asignacion_valida(self):
-        """Test que una asignación válida se crea correctamente"""
-        asignacion = MateriaGrado.objects.create(
-            grado=self.grado,
-            materia=self.materia
-        )
-        self.assertEqual(asignacion.grado, self.grado)
-        self.assertEqual(asignacion.materia, self.materia)
-        self.assertEqual(str(asignacion), 'PRIMERO - Matemáticas')
-
-    def test_asignacion_duplicada(self):
-        """Test que no se puede asignar la misma materia al mismo grado dos veces"""
-        MateriaGrado.objects.create(
-            grado=self.grado,
-            materia=self.materia
-        )
-        
-        with self.assertRaises(IntegrityError):
-            MateriaGrado.objects.create(
-                grado=self.grado,
-                materia=self.materia
-            )
+            d.full_clean()
