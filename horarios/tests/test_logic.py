@@ -1,20 +1,24 @@
 """
-Tests para validaciones de horarios.
+Tests consolidados de lógica de negocio y algoritmo de generación.
 """
 
 from django.test import TestCase
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
+from datetime import time
+from unittest.mock import patch
 
 from horarios.models import (
     Curso, Materia, Profesor, Aula, Horario, BloqueHorario,
-    DisponibilidadProfesor, MateriaGrado, MateriaProfesor, Grado
+    DisponibilidadProfesor, MateriaGrado, MateriaProfesor, Grado,
+    ConfiguracionColegio, CursoMateriaRequerida, ConfiguracionCurso
 )
-from horarios.domain.validators.validadores import validar_antes_de_persistir, ValidadorHorarios
+from horarios.domain.validators.validadores import validar_antes_de_persistir
+from horarios.application.services.generador_demand_first import GeneradorDemandFirst
 
 
 class TestValidacionesHorarios(TestCase):
-    """Tests para las validaciones de horarios."""
+    """Tests para las validaciones de reglas de negocio."""
     
     def setUp(self):
         """Configurar datos de prueba."""
@@ -348,4 +352,71 @@ class TestValidacionesHorarios(TestCase):
                     )
         
         # Verificar que no se crearon horarios adicionales
-        self.assertEqual(Horario.objects.count(), 1) 
+        self.assertEqual(Horario.objects.count(), 1)
+
+
+class GeneradorDemandFirstTest(TestCase):
+    """Tests para el algoritmo de generación."""
+
+    def setUp(self):
+        # Configuración del colegio
+        ConfiguracionColegio.objects.create(
+            dias_clase='lunes,martes,miércoles,jueves,viernes',
+            bloques_por_dia=6,
+            jornada='mañana',
+            duracion_bloque=60
+        )
+
+        # Bloques
+        for i in range(1, 7):
+            BloqueHorario.objects.create(
+                numero=i,
+                hora_inicio=time(7+i, 0),
+                hora_fin=time(7+i, 45),
+                tipo='clase'
+            )
+
+        # Datos maestros
+        self.grado = Grado.objects.create(nombre='PRIMERO')
+        self.aula = Aula.objects.create(nombre='A1', capacidad=30)
+        self.curso = Curso.objects.create(nombre='1A', grado=self.grado, aula_fija=self.aula)
+
+        self.profesor = Profesor.objects.create(nombre='Profesor Test')
+        self.materia = Materia.objects.create(nombre='Materia Test', bloques_por_semana=2)
+
+        # Asignaciones
+        MateriaGrado.objects.create(grado=self.grado, materia=self.materia)
+        MateriaProfesor.objects.create(profesor=self.profesor, materia=self.materia)
+
+        # Disponibilidad: solo lunes bloques 1 y 2
+        DisponibilidadProfesor.objects.create(
+            profesor=self.profesor, dia='lunes', bloque_inicio=1, bloque_fin=2
+        )
+
+        # Requerimiento específico
+        CursoMateriaRequerida.objects.create(
+            curso=self.curso,
+            materia=self.materia,
+            bloques_requeridos=2
+        )
+
+        # Configuración del curso para completitud
+        ConfiguracionCurso.objects.create(
+            curso=self.curso,
+            slots_objetivo=2
+        )
+
+    def test_generacion_basica(self):
+        generador = GeneradorDemandFirst()
+        with patch.object(GeneradorDemandFirst, '_obtener_slots_objetivo', return_value=2):
+            resultado = generador.generar_horarios(semilla=42)
+
+        self.assertTrue(resultado['exito'], f"Generación falló: {resultado.get('razon')}")
+        self.assertEqual(len(resultado['horarios']), 2)
+
+        for h in resultado['horarios']:
+            self.assertEqual(h['curso_id'], self.curso.id)
+            self.assertEqual(h['materia_id'], self.materia.id)
+            self.assertEqual(h['profesor_id'], self.profesor.id)
+            self.assertEqual(h['dia'], 'lunes')
+            self.assertIn(h['bloque'], [1, 2])
