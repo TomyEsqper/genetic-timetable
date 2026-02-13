@@ -4,7 +4,11 @@ services:
   web:
     build: .
     image: ${DOCKER_HUB_USER:-genetic}/timetable-web:latest
-    command: gunicorn colegio.wsgi:application --bind 0.0.0.0:8000 --access-logfile - --error-logfile - --log-level info
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py createcachetable &&
+             gunicorn colegio.wsgi:application --bind 0.0.0.0:8000 --access-logfile - --error-logfile - --log-level info"
     volumes:
       - .:/app
     expose:

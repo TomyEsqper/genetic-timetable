@@ -26,7 +26,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-1&&4ql7&1+g+6$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = ['localhost', '127.0.0.1'] + [host for host in os.environ.get('ALLOWED_HOSTS', '').split(',') if host]
 
 # Seguridad Adicional
 SECURE_BROWSER_XSS_FILTER = True
@@ -208,9 +208,9 @@ if ENABLE_HTTPS:
     SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
     CSRF_TRUSTED_ORIGINS = [
         'https://localhost',
-        'https://52.14.216.149',
-        'http://52.14.216.149',
-    ] + os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
+        'http://localhost',
+        'http://127.0.0.1',
+    ] + [origin for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if origin]
 else:
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False

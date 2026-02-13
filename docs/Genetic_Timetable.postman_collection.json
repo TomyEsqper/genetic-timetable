@@ -1,0 +1,123 @@
+{
+	"info": {
+		"_postman_id": "genetic-timetable-id",
+		"name": "Genetic Timetable API",
+		"description": "Colección oficial para pruebas de Genetic Timetable en AWS.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Obtener Token (Login)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"pm.environment.set(\"token\", jsonData.access);",
+							"console.log(\"Token actualizado:\", jsonData.access);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"Geneticadmin\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/token/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"token",
+						""
+					]
+				},
+				"description": "Obtiene el JWT. El script de 'Tests' guarda automáticamente el token en la variable de entorno 'token'."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Verificar Estado Sistema",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/estado-sistema/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"estado-sistema",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3. Motor de Cálculo (Solver Puro)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"configuracion\": {\n    \"dias_clase\": \"lunes,martes,miércoles,jueves,viernes\",\n    \"bloques_por_dia\": 6,\n    \"duracion_bloque\": 55,\n    \"jornada\": \"mañana\"\n  },\n  \"materias\": [\n    { \"nombre\": \"Matemáticas\" },\n    { \"nombre\": \"Español\" },\n    { \"nombre\": \"Inglés\" }\n  ],\n  \"profesores\": [\n    {\n      \"nombre\": \"Prof. Matemáticas\",\n      \"materias_capaces\": [\"Matemáticas\"],\n      \"disponibilidad\": [] \n    },\n    {\n      \"nombre\": \"Prof. Humanidades\",\n      \"materias_capaces\": [\"Español\", \"Inglés\"],\n      \"disponibilidad\": [\n         { \"dia\": \"lunes\", \"bloque_inicio\": 1, \"bloque_fin\": 3 }\n      ]\n    }\n  ],\n  \"cursos\": [\n    {\n      \"nombre\": \"SEXTO A\",\n      \"grado\": \"6\",\n      \"plan_estudios\": {\n        \"Matemáticas\": 5,\n        \"Español\": 4,\n        \"Inglés\": 4\n      }\n    }\n  ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/engine/solve/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"engine",
+						"solve",
+						""
+					]
+				},
+				"description": "⚠️ Este endpoint LIMPIA la base de datos temporalmente para resolver el escenario enviado."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://3.139.96.102",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
