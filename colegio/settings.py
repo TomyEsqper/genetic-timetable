@@ -46,6 +46,7 @@ SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-default-key-fo
 DEBUG = config('DJANGO_DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=Csv())
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost,http://127.0.0.1', cast=Csv())
 
 
 # Seguridad Adicional
@@ -226,12 +227,12 @@ if ENABLE_HTTPS:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
     
-    trusted_origins = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
+    # CSRF_TRUSTED_ORIGINS ya se definió arriba globalmente o se ajusta aquí
     CSRF_TRUSTED_ORIGINS = [
         'https://localhost',
         'http://localhost',
         'http://127.0.0.1',
-    ] + trusted_origins
+    ] + list(CSRF_TRUSTED_ORIGINS)
 else:
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
