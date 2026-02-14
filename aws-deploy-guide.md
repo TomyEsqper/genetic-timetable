@@ -35,7 +35,7 @@ Esta es la guía definitiva para actualizar tu proyecto en AWS. Sigue estos paso
     *   Abre una terminal nueva (PowerShell o CMD).
     *   Usa tu llave `.pem` (asegúrate de estar en la carpeta donde la guardaste):
     ```powershell
-    ssh -i "GeneradorKey.pem" ubuntu@52.14.216.149
+    ssh -i "GeneradorKey.pem" ubuntu@18.188.89.221
     ```
 
 2.  **Actualizar Código Base**
@@ -45,7 +45,20 @@ Esta es la guía definitiva para actualizar tu proyecto en AWS. Sigue estos paso
     ```
     *(Si dice "Already up to date", es normal si solo cambiaste código Python y no configuración).*
 
-## 3. Configuración Inicial (Solo la primera vez)
+---
+
+## 3. Configuración del Archivo .env (CRÍTICO)
+
+Asegúrate de que tu archivo `.env` en el servidor contenga la IP correcta:
+```bash
+PROD_IP=18.188.89.221
+ALLOWED_HOSTS=localhost,127.0.0.1,18.188.89.221
+CSRF_TRUSTED_ORIGINS=https://18.188.89.221,http://18.188.89.221
+```
+
+---
+
+## 4. Configuración Inicial (Solo la primera vez)
 
 Si es la **primera vez** que despliegas (o borraste la base de datos), necesitas configurar lo siguiente:
 
@@ -80,14 +93,12 @@ Para que HTTPS funcione, necesitas generar los certificados SSL. Hemos creado un
     -   **443 (HTTPS)**: 0.0.0.0/0
     *Si el puerto 443 está cerrado, HTTPS fallará y dará timeout.*
 
-## 5. Despliegue con Docker Compose
+## 6. Despliegue con Docker Compose
 
-La configuración ahora es dinámica. El archivo `docker-compose.prod.yml` usa la IP `52.14.216.149` por defecto, pero puedes cambiarla estableciendo la variable `PROD_IP`.
+La configuración ahora es dinámica. El archivo `docker-compose.prod.yml` usa la variable `PROD_IP` definida en tu `.env`.
 
 ```bash
-# (Opcional) Si tu IP cambia:
-# export PROD_IP=tu.nueva.ip.aws
-
+# Actualizar y reiniciar
 docker-compose -f docker-compose.prod.yml down
 docker-compose -f docker-compose.prod.yml up -d --build
 ```

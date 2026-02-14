@@ -17,8 +17,8 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - DB_ENGINE=django.db.backends.sqlite3
       - ENABLE_HTTPS=True
-      - CSRF_TRUSTED_ORIGINS=https://localhost,https://${PROD_IP:-52.14.216.149}
-      - ALLOWED_HOSTS=localhost,127.0.0.1,${PROD_IP:-52.14.216.149}
+      - CSRF_TRUSTED_ORIGINS=https://localhost,http://localhost,https://${PROD_IP},http://${PROD_IP}
+      - ALLOWED_HOSTS=localhost,127.0.0.1,${PROD_IP}
       - ADMIN_URL=gestion-secreta/
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-prod-key-change-me}
     depends_on:
@@ -48,7 +48,7 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      - NGINX_HOST=${PROD_IP:-52.14.216.149}
+      - NGINX_HOST=${PROD_IP}
     volumes:
       - ./nginx/default.conf:/etc/nginx/templates/default.conf.template
       - ./nginx/certs:/etc/nginx/certs
