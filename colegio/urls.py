@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.shortcuts import redirect
 from rest_framework.authtoken import views as drf_views
 
@@ -55,5 +55,6 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
-
+    # Fallback global: cualquier URL no reconocida → página principal
+    re_path(r'^.*$', lambda request: redirect('index')),
 ]
