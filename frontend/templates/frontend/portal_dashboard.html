@@ -1,0 +1,230 @@
+{% extends 'frontend/base_portal.html' %}
+
+{% block title %}Dashboard | Genetic Timetable{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<section class="py-12 px-4">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+            <div>
+                <h1 class="text-4xl font-bold mb-2">Panel de Control</h1>
+                <p class="text-gray-400 text-lg">Métricas en tiempo real y salud del motor genético.</p>
+            </div>
+            <div class="flex gap-3">
+                <button class="glass px-6 py-3 rounded-xl font-bold hover:bg-white/5 transition flex items-center gap-2">
+                    <i class="fas fa-sync-alt"></i> Actualizar
+                </button>
+                <a href="{% url 'panel_coordinador' %}" class="bg-primary-600 px-6 py-3 rounded-xl font-bold hover:bg-primary-700 transition flex items-center gap-2 shadow-lg shadow-primary-600/20">
+                    <i class="fas fa-plus"></i> Nuevo Horario
+                </a>
+            </div>
+        </div>
+
+        <!-- Grid de Métricas Principales -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+            <div class="glass p-6 rounded-3xl relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-blue-500/10 text-7xl group-hover:scale-110 transition duration-500">
+                    <i class="fas fa-school"></i>
+                </div>
+                <h3 class="text-gray-500 font-bold text-xs uppercase tracking-widest mb-4">Cursos Activos</h3>
+                <div class="flex items-end gap-2">
+                    <p class="text-5xl font-extrabold">{{ total_cursos }}</p>
+                    <span class="text-green-400 text-sm font-bold mb-1"><i class="fas fa-caret-up"></i> +2</span>
+                </div>
+            </div>
+            <div class="glass p-6 rounded-3xl relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-green-500/10 text-7xl group-hover:scale-110 transition duration-500">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <h3 class="text-gray-500 font-bold text-xs uppercase tracking-widest mb-4">Factor Ocupación</h3>
+                <div class="flex items-end gap-2">
+                    <p class="text-5xl font-extrabold">85%</p>
+                    <span class="text-gray-500 text-sm mb-1">Óptimo</span>
+                </div>
+            </div>
+            <div class="glass p-6 rounded-3xl relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-purple-500/10 text-7xl group-hover:scale-110 transition duration-500">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <h3 class="text-gray-500 font-bold text-xs uppercase tracking-widest mb-4">Horarios Generados</h3>
+                <div class="flex items-end gap-2">
+                    <p class="text-5xl font-extrabold">{{ total_horarios }}</p>
+                    <span class="text-purple-400 text-sm font-bold mb-1">Optimizados</span>
+                </div>
+            </div>
+            <div class="glass p-6 rounded-3xl relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-orange-500/10 text-7xl group-hover:scale-110 transition duration-500">
+                    <i class="fas fa-bug"></i>
+                </div>
+                <h3 class="text-gray-500 font-bold text-xs uppercase tracking-widest mb-4">Errores Sentry</h3>
+                <div class="flex items-end gap-2">
+                    <p class="text-5xl font-extrabold">0</p>
+                    <span class="text-green-400 text-sm font-bold mb-1">Healthy</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <!-- Gráfico de Rendimiento -->
+            <div class="lg:col-span-2 glass p-8 rounded-[2.5rem]">
+                <div class="flex items-center justify-between mb-8">
+                    <h3 class="text-xl font-bold">Convergencia del Algoritmo</h3>
+                    <div class="flex gap-2">
+                        <span class="bg-primary-500/20 text-primary-400 text-[10px] font-bold px-2 py-1 rounded uppercase">Generaciones</span>
+                    </div>
+                </div>
+                <canvas id="performanceChart" height="150"></canvas>
+                <div class="mt-6 p-4 bg-white/5 rounded-2xl border border-white/5 text-sm text-gray-500">
+                    <p><b>Cómo interpretarlo:</b> una línea ascendente indica mejoras de calidad por generación. Si la línea se estabiliza, aumenta <i>generaciones</i> o revisa las <i>soft constraints</i>.</p>
+                </div>
+            </div>
+
+            <!-- Restricciones y Salud -->
+            <div class="glass p-8 rounded-[2.5rem]">
+                <h3 class="text-xl font-bold mb-8">Salud del Motor</h3>
+                <div class="space-y-6">
+                    <div>
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-400">Conflictos de Aula</span>
+                            <span class="text-green-400 font-bold">0%</span>
+                        </div>
+                        <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                            <div class="w-full h-full bg-green-500 rounded-full"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-400">Carga Docente</span>
+                            <span class="text-primary-400 font-bold">85%</span>
+                        </div>
+                        <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                            <div class="w-[85%] h-full bg-primary-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-400">Uso de Slots</span>
+                            <span class="text-purple-400 font-bold">92%</span>
+                        </div>
+                        <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                            <div class="w-[92%] h-full bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div>
+                        </div>
+                    </div>
+                    <hr class="border-white/5">
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fas fa-info-circle text-primary-400"></i>
+                            <p class="text-xs font-bold uppercase text-gray-400">Sugerencia de IA</p>
+                        </div>
+                        <p class="text-sm text-gray-500 leading-relaxed">
+                            Detectamos una alta concentración de horas los lunes. Considera rotar 2 bloques para equilibrar la semana.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Engine Status Card Renovado -->
+        <div class="glass p-12 rounded-[3rem] relative overflow-hidden group border border-primary-500/20">
+            <div class="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 transition duration-700 pointer-events-none">
+                <i class="fas fa-microchip text-[15rem]"></i>
+            </div>
+            <div class="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="flex items-center gap-3 mb-6">
+                        <span class="flex h-4 w-4 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-4 w-4 bg-green-500"></span>
+                        </span>
+                        <span class="text-green-400 font-bold tracking-[0.2em] text-xs uppercase">SISTEMA NOMINAL</span>
+                    </div>
+                    <h2 class="text-4xl font-extrabold mb-6">Genetic Engine v2.0 <br><span class="text-gray-500">Ready for Deployment</span></h2>
+                    <p class="text-gray-400 text-lg leading-relaxed mb-8">
+                        Nuestro motor está operando en un entorno distribuido con Celery y Redis. Cada generación es procesada asincrónicamente para garantizar que la interfaz nunca se bloquee.
+                    </p>
+                    <div class="flex flex-wrap gap-4">
+                        <div class="bg-gray-900/80 px-6 py-4 rounded-2xl border border-white/5">
+                            <p class="text-[10px] text-gray-500 uppercase font-bold mb-1 tracking-widest">CPU LOAD</p>
+                            <p class="text-xl font-mono text-white">12.4%</p>
+                        </div>
+                        <div class="bg-gray-900/80 px-6 py-4 rounded-2xl border border-white/5">
+                            <p class="text-[10px] text-gray-500 uppercase font-bold mb-1 tracking-widest">RAM USAGE</p>
+                            <p class="text-xl font-mono text-white">412MB</p>
+                        </div>
+                        <div class="bg-gray-900/80 px-6 py-4 rounded-2xl border border-white/5">
+                            <p class="text-[10px] text-gray-500 uppercase font-bold mb-1 tracking-widest">THREADS</p>
+                            <p class="text-xl font-mono text-white">x64</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-black/40 p-6 rounded-3xl border border-white/5 font-mono text-sm overflow-hidden relative">
+                    <div class="flex gap-2 mb-4">
+                        <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+                    </div>
+                    <div class="space-y-1 text-gray-400">
+                        <p><span class="text-green-500">[OK]</span> Initializing population...</p>
+                        <p><span class="text-green-500">[OK]</span> Loading constraints (Hard: 42, Soft: 156)</p>
+                        <p><span class="text-blue-500">[INFO]</span> Generation 1: Fitness 0.12</p>
+                        <p><span class="text-blue-500">[INFO]</span> Generation 10: Fitness 0.65</p>
+                        <p><span class="text-blue-500">[INFO]</span> Generation 50: Fitness 0.98</p>
+                        <p><span class="text-yellow-500">[WAIT]</span> Optimizing soft constraints...</p>
+                        <p class="animate-pulse text-primary-400">_</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs Clave -->
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="glass p-6 rounded-2xl border border-white/5">
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-widest mb-2">Factor de Ocupación</p>
+                <p class="text-gray-400 text-sm">Porcentaje de slots utilizados. Ideal 80–90%.</p>
+            </div>
+            <div class="glass p-6 rounded-2xl border border-white/5">
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-widest mb-2">Carga Docente</p>
+                <p class="text-gray-400 text-sm">Equilibrio de horas por profesor. Evita picos semanales.</p>
+            </div>
+            <div class="glass p-6 rounded-2xl border border-white/5">
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-widest mb-2">Conflictos de Aula</p>
+                <p class="text-gray-400 text-sm">Debe permanecer en 0%. Cualquier valor >0% bloquea publicación.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Gen 0', 'Gen 10', 'Gen 20', 'Gen 30', 'Gen 40', 'Gen 50', 'Gen 60'],
+            datasets: [{
+                label: 'Fitness (Calidad)',
+                data: [0.1, 0.45, 0.78, 0.89, 0.95, 0.98, 0.99],
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3,
+                pointBackgroundColor: '#3b82f6'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280' } },
+                x: { grid: { display: false }, ticks: { color: '#6b7280' } }
+            }
+        }
+    });
+</script>
+{% endblock %}

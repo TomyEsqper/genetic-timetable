@@ -152,10 +152,7 @@ function iniciarMonitoreoProgreso() {
           // Mostrar mensaje de éxito
           mostrarMensaje('✅ Horarios generados exitosamente!', 'success');
           
-          // Recargar página después de 2 segundos para mostrar horarios
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
+          // Evitar recarga: ya actualizamos estadísticas y mostramos mensaje
           
         } else if (data.estado === 'en_progreso') {
           // Actualizar indicadores de progreso
@@ -393,17 +390,44 @@ document.addEventListener('DOMContentLoaded', function() {
   
   if (form) {
     form.addEventListener('submit', function(e) {
+      e.preventDefault();
       // Mostrar indicador de carga
       btnGenerar.disabled = true;
       btnGenerar.textContent = 'Generando...';
       loadingIndicator.classList.remove('hidden');
       
-      // Iniciar monitoreo de progreso después de un segundo
-      setTimeout(() => {
-        iniciarMonitoreoProgreso();
-      }, 1000);
-      
-      // El formulario se enviará normalmente
+      // Enviar formulario por AJAX para evitar redirección
+      const formData = new FormData(form);
+      fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': getCookie('csrftoken') || ''
+        },
+        body: formData
+      })
+      .then(async (response) => {
+        let data = {};
+        try { data = await response.json(); } catch (_) {}
+        if (!response.ok || data.ok === false) {
+          const msg = data.mensaje || 'Error al iniciar la generación';
+          mostrarMensaje(`❌ ${msg}`, 'error');
+          btnGenerar.disabled = false;
+          btnGenerar.textContent = 'Generar Horarios';
+          loadingIndicator.classList.add('hidden');
+          return;
+        }
+        // Iniciar monitoreo de progreso después de un segundo
+        setTimeout(() => {
+          iniciarMonitoreoProgreso();
+        }, 1000);
+      })
+      .catch((err) => {
+        mostrarMensaje(`❌ Error de red: ${err}`, 'error');
+        btnGenerar.disabled = false;
+        btnGenerar.textContent = 'Generar Horarios';
+        loadingIndicator.classList.add('hidden');
+      });
     });
   }
   
@@ -424,7 +448,13 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(response => response.json())
     .then(data => {
         if (data.estado === 'en_progreso') {
-            iniciarMonitoreoProgreso();
+          iniciarMonitoreoProgreso();
+        } else if (data.estado === 'finalizado') {
+          // Manejar finalización inmediata (modo eager/local) para dar feedback al usuario
+          fetch('/limpiar-cache-progreso/').catch(() => {});
+          cargarEstadisticas();
+          mostrarMensaje('✅ Horarios generados exitosamente!', 'success');
+          // No recargar para evitar bucles si el cache tarda en limpiarse
         }
     })
     .catch(console.error);
