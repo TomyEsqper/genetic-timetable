@@ -175,8 +175,35 @@
     </section>
   </div>
 
-  {% include 'frontend/components/scripts.html' %}
   <script>
+    // Implementación mínima inline para evitar dependencia de templates ausentes
+    async function cargarHorarioAjax(tipo, id) {
+      const cont = document.getElementById('horario-container');
+      if (!cont) return;
+      cont.innerHTML = '<div class="text-gray-300">Cargando…</div>';
+      try {
+        const url = "{% url 'horario_ajax' %}" + `?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Error al consultar la API');
+        const data = await res.json();
+        // Render sencillo: lista de clases
+        const items = (data.horarios || []).map(h => {
+          const aula = h.aula || 'Sin aula';
+          return `<div class="mb-2 p-3 rounded-lg bg-white/10 border border-white/10">
+            <div class="font-semibold">${h.materia}</div>
+            <div class="text-sm text-gray-300">Profesor: ${h.profesor}</div>
+            <div class="text-sm text-gray-400">Día: ${h.dia} · Bloque: ${h.bloque} · ${aula}</div>
+          </div>`;
+        }).join('') || '<div class="text-gray-400">Sin datos para mostrar.</div>';
+        cont.innerHTML = `
+          <div class="mb-3 text-sm text-gray-400">${data.titulo || 'Vista'}</div>
+          ${items}
+        `;
+      } catch (e) {
+        cont.innerHTML = `<div class="text-red-400">Error: ${e.message}</div>`;
+      }
+    }
+
     (function(){
       const btn = document.getElementById('btn-guardar-cambios');
       if (!btn) return;
