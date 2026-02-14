@@ -21,4 +21,5 @@ urlpatterns = [
     path('generar-horario/', views.generar_horario, name='generar_horario'),
     path('pdf/curso/<int:curso_id>/', views.pdf_curso, name='pdf_curso'),
     path('descargar-excel/', views.descargar_excel, name='descargar_excel'),
+    path('mover-horario-ajax/', views.mover_horario_ajax, name='mover_horario_ajax'),
 ]

@@ -7,6 +7,12 @@
   <title>Dashboard de Horarios</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    .drag-over{outline:2px dashed #60a5fa; background-color:rgba(96,165,250,.15)}
+    .allowed-cell{box-shadow:inset 0 0 0 2px rgba(16,185,129,.6); background-color:rgba(16,185,129,.12)}
+    .forbidden-cell{box-shadow:inset 0 0 0 2px rgba(239,68,68,.6); background-color:rgba(239,68,68,.12)}
+    .draggable-item{cursor:move}
+  </style>
 </head>
 <body class="bg-[#0b0f19] text-gray-100 min-h-screen">
   <div class="max-w-7xl mx-auto px-4 py-8">
@@ -215,6 +221,113 @@
         }, 150);
       });
     })();
+
+    function getCookie(name){
+      const v=`; ${document.cookie}`.split(`; ${name}=`); if(v.length===2) return v.pop().split(';').shift();
+    }
+    let dragged=null, originSlot=null;
+    function initDnD(){
+      document.querySelectorAll('.draggable-item').forEach(el=>{
+        el.setAttribute('draggable','true');
+        el.addEventListener('dragstart',onDragStart);
+        el.addEventListener('dragend',onDragEnd);
+      });
+      document.querySelectorAll('.slot-celda').forEach(slot=>{
+        slot.addEventListener('dragover',onDragOver);
+        slot.addEventListener('dragenter',onDragEnter);
+        slot.addEventListener('dragleave',onDragLeave);
+        slot.addEventListener('drop',onDrop);
+      });
+    }
+    function onDragStart(e){
+      dragged=e.currentTarget;
+      originSlot=dragged.closest('.slot-celda');
+      dragged.classList.add('opacity-60');
+      highlightSlots(dragged, originSlot);
+    }
+    function onDragEnd(){
+      if(dragged) dragged.classList.remove('opacity-60');
+      clearHighlights();
+      dragged=null; originSlot=null;
+    }
+    function onDragOver(e){
+      e.preventDefault(); e.dataTransfer.dropEffect='move';
+    }
+    function onDragEnter(e){
+      const slot=e.currentTarget; slot.classList.add('drag-over');
+    }
+    function onDragLeave(e){
+      const slot=e.currentTarget; slot.classList.remove('drag-over');
+    }
+    function onDrop(e){
+      e.preventDefault();
+      const slot=e.currentTarget;
+      document.querySelectorAll('.drag-over').forEach(s=>s.classList.remove('drag-over'));
+      if(!dragged||!originSlot) return;
+      const ok = slot.classList.contains('allowed-cell');
+      if(!ok) return;
+      const existing=slot.querySelector('.draggable-item');
+      slot.appendChild(dragged);
+      if(existing) originSlot.appendChild(existing);
+      persistMove(dragged.dataset.id, slot.dataset.dia, slot.dataset.bloque, existing?existing.dataset.id:null)
+        .then(()=>{ clearHighlights(); })
+        .catch(err=>{
+          originSlot.appendChild(dragged);
+          if(existing) slot.appendChild(existing);
+          clearHighlights();
+          alert('No se pudo mover: '+err.message);
+        });
+    }
+    function highlightSlots(item, origin){
+      clearHighlights();
+      const profesor=item.dataset.profesor;
+      const curso=origin.dataset.curso;
+      const origenDia=origin.dataset.dia;
+      const origenBloque=origin.dataset.bloque;
+      document.querySelectorAll('.slot-celda').forEach(slot=>{
+        if(slot.dataset.curso!==curso) return;
+        const dia=slot.dataset.dia, bloque=slot.dataset.bloque;
+        let conflict=false;
+        document.querySelectorAll('.draggable-item').forEach(card=>{
+          if(card===item) return;
+          const s=card.closest('.slot-celda');
+          if(card.dataset.profesor===profesor && s && s.dataset.dia===dia && s.dataset.bloque===bloque){
+            conflict=true;
+          }
+        });
+        if(!conflict){
+          const other=slot.querySelector('.draggable-item');
+          if(other){
+            const otherProf=other.dataset.profesor;
+            document.querySelectorAll('.draggable-item').forEach(card=>{
+              const s=card.closest('.slot-celda');
+              if(card!==item && card.dataset.profesor===otherProf && s && s.dataset.dia===origenDia && s.dataset.bloque===origenBloque){
+                conflict=true;
+              }
+            });
+          }
+        }
+        if(!conflict) slot.classList.add('allowed-cell'); else slot.classList.add('forbidden-cell');
+      });
+    }
+    function clearHighlights(){
+      document.querySelectorAll('.allowed-cell').forEach(s=>s.classList.remove('allowed-cell'));
+      document.querySelectorAll('.forbidden-cell').forEach(s=>s.classList.remove('forbidden-cell'));
+      document.querySelectorAll('.drag-over').forEach(s=>s.classList.remove('drag-over'));
+    }
+    async function persistMove(horarioId, dia, bloque){
+      const res=await fetch("{% url 'mover_horario_ajax' %}",{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')||''},
+        body:JSON.stringify({horario_id:horarioId,nuevo_dia:dia,nuevo_bloque:parseInt(bloque)})
+      });
+      if(!res.ok){
+        const t=await res.json().catch(()=>({error:'error'}));
+        throw new Error(t.error||'error');
+      }
+      return res.json();
+    }
+    document.addEventListener('DOMContentLoaded', initDnD);
   </script>
 </body>
 </html>
