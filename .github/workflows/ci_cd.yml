@@ -11,8 +11,48 @@ env:
   IMAGE_NAME_CELERY: genetic-timetable-celery
 
 jobs:
-  # 1. Continuous Delivery (Build & Push Docker Images)
+  # 1. Tests & Linting
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 pytest pytest-django sentry-sdk
+
+      - name: Lint with flake8
+        run: |
+          # F821: undefined name (ya corregidos en el código)
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run Tests
+        env:
+          DJANGO_SECRET_KEY: 'test-key-for-ci'
+          DJANGO_DEBUG: 'True'
+          DB_ENGINE: 'django.db.backends.sqlite3'
+        run: |
+          pytest
+
+      - name: Django Production Check
+        env:
+          DJANGO_SECRET_KEY: 'prod-check-key'
+          DJANGO_DEBUG: 'False'
+          DB_ENGINE: 'django.db.backends.sqlite3'
+          ALLOWED_HOSTS: '*'
+        run: |
+          python manage.py check --deploy
+
+  # 2. Continuous Delivery (Build & Push Docker Images)
   build-and-push:
+    needs: test
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     steps:
