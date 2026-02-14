@@ -89,7 +89,7 @@ def generar_horarios_async(self, colegio_id: int, params: Optional[Dict[str, Any
     
     # Mapeo de parámetros antiguos a nuevos
     run_params = {
-        'max_iteraciones': params.get('num_generaciones', default_params['max_iteraciones']),
+        'max_iteraciones': params.get('max_iteraciones', params.get('num_generaciones', default_params['max_iteraciones'])),
         'paciencia': params.get('paciencia', default_params['paciencia']),
         'semilla': params.get('semilla', default_params['semilla'])
     }
@@ -164,15 +164,9 @@ def ejecutar_generacion_horarios(colegio_id: int, async_mode: bool = False,
             }
         except Exception as e:
             logging.error(f"Error conectando con broker Celery: {e}. Ejecutando síncronamente.")
-            # Fallback a síncrono
-            if CELERY_AVAILABLE:
-                return generar_horarios_async(colegio_id, params)
             return generar_horarios_async(None, colegio_id, params)
     else:
-        # Ejecutar de forma síncrona
         if async_mode and not CELERY_AVAILABLE:
             logging.warning("Celery no está disponible. Ejecutando de forma síncrona.")
         
-        if CELERY_AVAILABLE:
-            return generar_horarios_async(colegio_id, params)
         return generar_horarios_async(None, colegio_id, params)

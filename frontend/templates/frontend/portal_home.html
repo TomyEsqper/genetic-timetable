@@ -1,0 +1,270 @@
+{% extends 'frontend/base_portal.html' %}
+
+{% block title %}Genetic Timetable | El Futuro de la Gestión Académica{% endblock %}
+
+{% block content %}
+<!-- Hero Section Mejorado -->
+<header class="py-24 px-4 relative overflow-hidden">
+    <div class="max-w-7xl mx-auto text-center relative z-10">
+        <div class="inline-flex items-center gap-2 bg-primary-600/10 border border-primary-500/20 px-4 py-2 rounded-full text-primary-400 text-sm font-bold mb-8 animate-bounce">
+            <i class="fas fa-sparkles"></i> Nuevo: Algoritmo Genético v2.0
+        </div>
+        <h1 class="text-6xl md:text-8xl font-extrabold mb-8 tracking-tight leading-tight">
+            Horarios perfectos <br>
+            <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary-400 via-blue-400 to-purple-400">
+                Sin errores humanos.
+            </span>
+        </h1>
+        <p class="text-gray-400 text-xl md:text-2xl max-w-3xl mx-auto mb-12 leading-relaxed">
+            Nuestra inteligencia artificial evoluciona billones de posibilidades para encontrar la combinación ideal que respete la vida de tus profesores y la educación de tus alumnos.
+        </p>
+        <div class="flex flex-wrap justify-center gap-6">
+            <a href="{% url 'how_to_portal' %}" class="bg-primary-600 text-white px-10 py-5 rounded-2xl font-bold hover:bg-primary-700 transition transform hover:scale-105 shadow-xl shadow-primary-600/20 flex items-center gap-3">
+                <i class="fas fa-rocket text-xl"></i> Empezar Gratis
+            </a>
+            <a href="{% url 'docs_portal' %}" class="glass px-10 py-5 rounded-2xl font-bold hover:bg-white/10 transition flex items-center gap-3 border border-white/10">
+                <i class="fas fa-book-open text-xl text-purple-400"></i> Ver Documentación
+            </a>
+        </div>
+    </div>
+</header>
+
+<!-- Stats Rápidos -->
+<section class="py-12 border-y border-white/5 bg-white/5 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+        <div>
+            <p class="text-4xl font-extrabold text-white mb-1">99.9%</p>
+            <p class="text-gray-500 text-sm uppercase tracking-widest font-bold">Precisión</p>
+        </div>
+        <div>
+            <p class="text-4xl font-extrabold text-white mb-1">&lt; 2s</p>
+            <p class="text-gray-500 text-sm uppercase tracking-widest font-bold">Procesamiento</p>
+        </div>
+        <div>
+            <p class="text-4xl font-extrabold text-white mb-1">Billones</p>
+            <p class="text-gray-500 text-sm uppercase tracking-widest font-bold">Combinaciones</p>
+        </div>
+        <div>
+            <p class="text-4xl font-extrabold text-white mb-1">Zero</p>
+            <p class="text-gray-500 text-sm uppercase tracking-widest font-bold">Conflictos</p>
+        </div>
+    </div>
+</section>
+
+<!-- Cómo Funciona (Step-by-Step) -->
+<section class="py-32 px-4">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-20">
+            <h2 class="text-4xl md:text-5xl font-bold mb-6">¿Cómo ocurre la magia?</h2>
+            <p class="text-gray-400 text-lg">Un proceso híbrido de 4 fases que combina construcción inteligente y mejora estocástica.</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-12 relative">
+            <!-- Línea conectora (solo desktop) -->
+            <div class="hidden md:block absolute top-24 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-primary-500/20 to-transparent -z-10"></div>
+            
+            <div class="text-center group">
+                <div class="w-20 h-20 bg-primary-600/20 rounded-3xl flex items-center justify-center text-primary-400 mx-auto mb-8 border border-primary-500/30 group-hover:bg-primary-600 group-hover:text-white transition-all duration-500 transform group-hover:rotate-12">
+                    <i class="fas fa-database text-3xl"></i>
+                </div>
+                <h4 class="text-xl font-bold mb-4">1. Ingesta</h4>
+                <p class="text-gray-500 text-sm">Cargamos profes, materias, aulas y sus restricciones específicas desde la BD.</p>
+            </div>
+            
+            <div class="text-center group">
+                <div class="w-20 h-20 bg-purple-600/20 rounded-3xl flex items-center justify-center text-purple-400 mx-auto mb-8 border border-purple-500/30 group-hover:bg-purple-600 group-hover:text-white transition-all duration-500 transform group-hover:rotate-12">
+                    <i class="fas fa-puzzle-piece text-3xl"></i>
+                </div>
+                <h4 class="text-xl font-bold mb-4">2. Construcción</h4>
+                <p class="text-gray-500 text-sm">Estrategia <b>Demand-First</b>: Crea una solución válida sin choques en milisegundos.</p>
+            </div>
+            
+            <div class="text-center group">
+                <div class="w-20 h-20 bg-orange-600/20 rounded-3xl flex items-center justify-center text-orange-400 mx-auto mb-8 border border-orange-500/30 group-hover:bg-orange-600 group-hover:text-white transition-all duration-500 transform group-hover:rotate-12">
+                    <i class="fas fa-mountain text-3xl"></i>
+                </div>
+                <h4 class="text-xl font-bold mb-4">3. Optimización</h4>
+                <p class="text-gray-500 text-sm"><b>Hill Climbing</b>: Intercambia bloques para maximizar la calidad y reducir huecos.</p>
+            </div>
+            
+            <div class="text-center group">
+                <div class="w-20 h-20 bg-green-600/20 rounded-3xl flex items-center justify-center text-green-400 mx-auto mb-8 border border-green-500/30 group-hover:bg-green-600 group-hover:text-white transition-all duration-500 transform group-hover:rotate-12">
+                    <i class="fas fa-check-double text-3xl"></i>
+                </div>
+                <h4 class="text-xl font-bold mb-4">4. Resultado</h4>
+                <p class="text-gray-500 text-sm">Obtienes el horario óptimo evaluado por una función de fitness de 0 a 100.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Glosario y Arquitectura -->
+<section class="py-20 px-4 bg-white/5">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16">
+        <div>
+            <h3 class="text-3xl font-bold mb-10 flex items-center gap-3">
+                <i class="fas fa-book text-primary-400"></i> Glosario del Motor
+            </h3>
+            <div class="space-y-6">
+                <div class="glass p-6 rounded-2xl border-l-4 border-primary-500">
+                    <h5 class="font-bold text-white mb-2">Slot Horario</h5>
+                    <p class="text-gray-500 text-sm">La unidad mínima: una combinación única de Día, Bloque, Aula y Profesor.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border-l-4 border-red-500">
+                    <h5 class="font-bold text-white mb-2">Regla Dura (Hard Constraint)</h5>
+                    <p class="text-gray-500 text-sm">Inviolable por el motor. Ejemplo: Un profesor no puede estar en dos cursos al mismo tiempo.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border-l-4 border-blue-500">
+                    <h5 class="font-bold text-white mb-2">Regla Blanda (Soft Constraint)</h5>
+                    <p class="text-gray-500 text-sm">Deseable pero no obligatoria. Ejemplo: Minimizar las horas libres (huecos) de los estudiantes.</p>
+                </div>
+            </div>
+        </div>
+        <div>
+            <h3 class="text-3xl font-bold mb-10 flex items-center gap-3">
+                <i class="fas fa-layer-group text-purple-400"></i> Arquitectura Hexagonal
+            </h3>
+            <p class="text-gray-400 mb-8 leading-relaxed">
+                Nuestro sistema está construido bajo principios de <b>Clean Architecture</b>, separando la lógica de negocio de la infraestructura.
+            </p>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-900 p-6 rounded-2xl border border-white/5">
+                    <i class="fas fa-shield-alt text-2xl text-blue-400 mb-4"></i>
+                    <h6 class="font-bold mb-2">Dominio</h6>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest">Reglas de Oro</p>
+                </div>
+                <div class="bg-gray-900 p-6 rounded-2xl border border-white/5">
+                    <i class="fas fa-cogs text-2xl text-purple-400 mb-4"></i>
+                    <h6 class="font-bold mb-2">Aplicación</h6>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest">Casos de Uso</p>
+                </div>
+                <div class="bg-gray-900 p-6 rounded-2xl border border-white/5">
+                    <i class="fas fa-plug text-2xl text-orange-400 mb-4"></i>
+                    <h6 class="font-bold mb-2">Infraestructura</h6>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest">Adapters & DB</p>
+                </div>
+                <div class="bg-gray-900 p-6 rounded-2xl border border-white/5">
+                    <i class="fas fa-mobile-alt text-2xl text-green-400 mb-4"></i>
+                    <h6 class="font-bold mb-2">Interface</h6>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest">API & Web</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Características Detalladas -->
+<section class="py-32 px-4 bg-gradient-to-b from-transparent to-primary-900/10">
+    <div class="max-w-7xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <div>
+                <h2 class="text-4xl font-bold mb-8">Diseñado para la <br> <span class="text-primary-400">Complejidad Real</span></h2>
+                <div class="space-y-8">
+                    <div class="flex gap-6">
+                        <div class="flex-shrink-0 w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-primary-400">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div>
+                            <h5 class="text-xl font-bold mb-2">Restricciones de Tiempo</h5>
+                            <p class="text-gray-500">Maneja disponibilidades parciales de docentes y bloques de descanso obligatorios.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6">
+                        <div class="flex-shrink-0 w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-purple-400">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div>
+                            <h5 class="text-xl font-bold mb-2">Optimización de Espacios</h5>
+                            <p class="text-gray-500">Asigna aulas especializadas (laboratorios, canchas) solo cuando es necesario.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6">
+                        <div class="flex-shrink-0 w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-green-400">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>
+                            <h5 class="text-xl font-bold mb-2">Equidad Docente</h5>
+                            <p class="text-gray-500">Distribuye las horas de clase de forma justa para evitar el agotamiento del profesorado.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="relative">
+                <div class="glass p-8 rounded-[3rem] border-primary-500/20 relative z-10 overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-primary-600/20 to-transparent"></div>
+                    <img src="https://images.unsplash.com/photo-1551288049-bbbda5366fd9?auto=format&fit=crop&q=80&w=800" alt="Dashboard Preview" class="rounded-2xl relative z-20 shadow-2xl grayscale hover:grayscale-0 transition duration-700">
+                </div>
+                <!-- Círculos decorativos -->
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-purple-600/20 blur-3xl rounded-full animate-pulse"></div>
+                <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-primary-600/20 blur-3xl rounded-full animate-pulse" style="animation-delay: 1s;"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Destinatarios e Integraciones -->
+<section class="py-24 px-4">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16">
+        <div>
+            <h3 class="text-3xl font-bold mb-8">¿Para quién es?</h3>
+            <div class="space-y-5">
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-primary-400 flex-shrink-0">
+                        <i class="fas fa-university"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold">Colegios medianos y grandes</p>
+                        <p class="text-gray-500 text-sm">10+ cursos, múltiples jornadas, profesores compartidos entre grados.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-purple-400 flex-shrink-0">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold">Instituciones con aulas especiales</p>
+                        <p class="text-gray-500 text-sm">Laboratorios, canchas o auditorios con disponibilidad limitada.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div>
+            <h3 class="text-3xl font-bold mb-8">Integraciones y Exportación</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="glass p-5 rounded-2xl border border-white/5 text-center">
+                    <i class="fas fa-file-pdf text-2xl text-red-400"></i>
+                    <p class="text-xs text-gray-400 mt-2">Exportación PDF</p>
+                </div>
+                <div class="glass p-5 rounded-2xl border border-white/5 text-center">
+                    <i class="fas fa-file-csv text-2xl text-green-400"></i>
+                    <p class="text-xs text-gray-400 mt-2">CSV para BI</p>
+                </div>
+                <div class="glass p-5 rounded-2xl border border-white/5 text-center">
+                    <i class="fas fa-calendar-alt text-2xl text-blue-400"></i>
+                    <p class="text-xs text-gray-400 mt-2">Compatibilidad iCal</p>
+                </div>
+            </div>
+            <p class="text-gray-500 text-sm mt-4">Resultados listos para compartir con docentes y directivos.</p>
+        </div>
+    </div>
+    </div>
+</section>
+
+<!-- Call to Action Final -->
+<section class="py-32 px-4 text-center">
+    <div class="max-w-4xl mx-auto glass p-16 rounded-[4rem] border-primary-500/30">
+        <h2 class="text-4xl md:text-5xl font-bold mb-8">¿Listo para evolucionar?</h2>
+        <p class="text-gray-400 text-lg mb-12 max-w-2xl mx-auto">
+            Únete a los coordinadores que ya están ahorrando semanas de trabajo manual cada semestre.
+        </p>
+        <div class="flex flex-col md:flex-row justify-center gap-4">
+            <a href="{% url 'panel_coordinador' %}" class="bg-white text-gray-900 px-12 py-5 rounded-2xl font-bold hover:bg-gray-200 transition">
+                Entrar al Panel
+            </a>
+            <a href="{% url 'docs_portal' %}" class="glass px-12 py-5 rounded-2xl font-bold hover:bg-white/10 transition border border-white/10">
+                Ver API
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}

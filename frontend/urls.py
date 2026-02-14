@@ -2,7 +2,11 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.index, name='index'),
+    path('', views.portal, name='index'),
+    path('portal/dashboard/', views.portal_dashboard, name='dashboard_portal'),
+    path('como-probar/', views.portal_how_to, name='how_to_portal'),
+    path('documentacion/', views.portal_docs, name='docs_portal'),
+    path('panel/', views.index, name='panel_coordinador'),
 
     # Vista por curso
     path('curso/<int:curso_id>/', views.horario_curso, name='horario_curso'),
@@ -21,7 +25,7 @@ urlpatterns = [
     path('generar/', views.generar_horario, name='generar_horario'),
     path('validar/', views.validar_datos, name='validar_datos'),
 
-    path('dashboard/', views.dashboard, name='dashboard'),
+    path('dashboard/horarios/', views.dashboard, name='dashboard'),
 
     path('pdf/curso/<int:curso_id>/', views.pdf_curso, name='pdf_curso'),
 

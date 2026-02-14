@@ -6,7 +6,7 @@ from django.db.models import Count, Q
 from django.template.loader import get_template
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from xhtml2pdf import pisa
 from django.http import HttpResponse
 from horarios.models import Curso, Profesor, Aula, Horario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, BloqueHorario
@@ -60,6 +60,36 @@ def index(request):
         'aulas': Aula.objects.all(),
     }
     return render(request, 'frontend/index.html', context)
+
+def portal(request):
+    """
+    Landing page principal (Home).
+    """
+    return render(request, 'frontend/portal_home.html')
+
+def portal_dashboard(request):
+    """
+    Vista del Dashboard con métricas reales.
+    """
+    context = {
+        'total_cursos': Curso.objects.count(),
+        'total_profesores': Profesor.objects.count(),
+        'total_horarios': Horario.objects.count(),
+        'total_materias': MateriaGrado.objects.values('materia').distinct().count(),
+    }
+    return render(request, 'frontend/portal_dashboard.html', context)
+
+def portal_how_to(request):
+    """
+    Vista de guía "¿Cómo probar?".
+    """
+    return render(request, 'frontend/portal_how_to.html')
+
+def portal_docs(request):
+    """
+    Vista de Documentación técnica.
+    """
+    return render(request, 'frontend/portal_docs.html')
 
 def horario_curso(request, curso_id):
     """
@@ -192,6 +222,12 @@ def generar_horario(request):
             resultado_factibilidad = validador.validar_factibilidad_completa()
             
             if not resultado_factibilidad.es_factible:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'ok': False,
+                        'mensaje': "Error de validación previa: La configuración actual no es factible.",
+                        'problemas': [p.descripcion for p in resultado_factibilidad.problemas]
+                    }, status=400)
                 messages.error(request, "❌ Error de validación previa: La configuración actual no es factible.")
                 for problema in resultado_factibilidad.problemas:
                     messages.error(request, f"  - {problema.descripcion}")
@@ -208,21 +244,34 @@ def generar_horario(request):
             if resultado.get('status') == 'task_created':
                 # Modo asíncrono: Guardar ID de tarea en sesión
                 request.session['task_id'] = resultado.get('task_id')
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'ok': True, 'status': 'iniciado', 'task_id': resultado.get('task_id')})
                 messages.success(request, "🚀 Generación iniciada en segundo plano. Los resultados aparecerán pronto.")
             elif not resultado.get('exito'):
                 # Modo síncrono (fallback) o error inmediato
                 razon = resultado.get('error', 'Falló la generación')
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'ok': False, 'mensaje': f"Error al generar horarios: {razon}"}, status=500)
                 messages.error(request, f"❌ Error al generar horarios: {razon}")
             else:
                 # Modo síncrono: Éxito
                 tiempo_total = resultado.get('tiempo_ejecucion', 0)
                 slots = resultado.get('slots_generados', 0)
                 calidad = resultado.get('calidad_final', 0)
-                
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'ok': True,
+                        'status': 'finalizado',
+                        'tiempo': tiempo_total,
+                        'slots': slots,
+                        'calidad': calidad
+                    })
                 messages.success(request, f"✅ Horarios generados exitosamente en {tiempo_total:.2f} segundos")
                 messages.info(request, f"📊 Slots: {slots}, Calidad: {calidad:.2f}")
                 
         except Exception as e:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'ok': False, 'mensaje': f"Error interno al generar horarios: {str(e)}"}, status=500)
             messages.error(request, f"❌ Error interno al generar horarios: {str(e)}")
             import traceback
             messages.error(request, f"  - Traceback: {traceback.format_exc()[:200]}...")
@@ -231,6 +280,7 @@ def generar_horario(request):
     else:
         return redirect('dashboard')
 
+@ensure_csrf_cookie
 def dashboard(request):
     # Optimizar todas las consultas con select_related y prefetch_related
     total_cursos = Curso.objects.count()

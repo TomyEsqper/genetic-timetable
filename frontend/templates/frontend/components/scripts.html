@@ -152,10 +152,7 @@ function iniciarMonitoreoProgreso() {
           // Mostrar mensaje de éxito
           mostrarMensaje('✅ Horarios generados exitosamente!', 'success');
           
-          // Recargar página después de 2 segundos para mostrar horarios
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
+          // Evitar recarga: ya actualizamos estadísticas y mostramos mensaje
           
         } else if (data.estado === 'en_progreso') {
           // Actualizar indicadores de progreso
@@ -393,17 +390,44 @@ document.addEventListener('DOMContentLoaded', function() {
   
   if (form) {
     form.addEventListener('submit', function(e) {
+      e.preventDefault();
       // Mostrar indicador de carga
       btnGenerar.disabled = true;
       btnGenerar.textContent = 'Generando...';
       loadingIndicator.classList.remove('hidden');
       
-      // Iniciar monitoreo de progreso después de un segundo
-      setTimeout(() => {
-        iniciarMonitoreoProgreso();
-      }, 1000);
-      
-      // El formulario se enviará normalmente
+      // Enviar formulario por AJAX para evitar redirección
+      const formData = new FormData(form);
+      fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': getCookie('csrftoken') || ''
+        },
+        body: formData
+      })
+      .then(async (response) => {
+        let data = {};
+        try { data = await response.json(); } catch (_) {}
+        if (!response.ok || data.ok === false) {
+          const msg = data.mensaje || 'Error al iniciar la generación';
+          mostrarMensaje(`❌ ${msg}`, 'error');
+          btnGenerar.disabled = false;
+          btnGenerar.textContent = 'Generar Horarios';
+          loadingIndicator.classList.add('hidden');
+          return;
+        }
+        // Iniciar monitoreo de progreso después de un segundo
+        setTimeout(() => {
+          iniciarMonitoreoProgreso();
+        }, 1000);
+      })
+      .catch((err) => {
+        mostrarMensaje(`❌ Error de red: ${err}`, 'error');
+        btnGenerar.disabled = false;
+        btnGenerar.textContent = 'Generar Horarios';
+        loadingIndicator.classList.add('hidden');
+      });
     });
   }
   
@@ -424,7 +448,13 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(response => response.json())
     .then(data => {
         if (data.estado === 'en_progreso') {
-            iniciarMonitoreoProgreso();
+          iniciarMonitoreoProgreso();
+        } else if (data.estado === 'finalizado') {
+          // Manejar finalización inmediata (modo eager/local) para dar feedback al usuario
+          fetch('/limpiar-cache-progreso/').catch(() => {});
+          cargarEstadisticas();
+          mostrarMensaje('✅ Horarios generados exitosamente!', 'success');
+          // No recargar para evitar bucles si el cache tarda en limpiarse
         }
     })
     .catch(console.error);
@@ -433,6 +463,10 @@ document.addEventListener('DOMContentLoaded', function() {
 function cargarHorarioAjax(tipo, id) {
   const container = document.getElementById('horario-container');
   if (!container) return;
+  if (!id || String(id).trim() === '') {
+    container.innerHTML = '<div class="text-center p-6 text-yellow-400">Ingresa un ID válido.</div>';
+    return;
+  }
   
   container.innerHTML = '<div class="text-center p-8"><div class="animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div><p class="mt-2">Cargando horario...</p></div>';
   
@@ -453,30 +487,40 @@ function cargarHorarioAjax(tipo, id) {
 }
 
 function renderizarHorario(data, container) {
-  let html = `<h2 class="text-2xl font-bold text-blue-900 mb-6">${data.titulo}</h2>`;
-  html += '<div class="overflow-x-auto"><table class="w-full border-collapse border border-gray-300">';
+  let html = `<h2 class="text-2xl font-bold mb-6">${data.titulo}</h2>`;
+  html += '<div class="overflow-x-auto"><table class="w-full border-collapse border border-white/10 bg-white/5 rounded-xl">';
   
-  // Encabezado
-  html += '<thead><tr class="bg-gray-100"><th class="border border-gray-300 p-2 text-center font-semibold">Hora</th>';
+  html += '<thead><tr class="bg-white/10"><th class="border border-white/10 p-2 text-center font-semibold">Hora</th>';
   data.dias.forEach(dia => {
-    html += `<th class="border border-gray-300 p-2 text-center font-semibold">${dia.charAt(0).toUpperCase() + dia.slice(1)}</th>`;
+    html += `<th class="border border-white/10 p-2 text-center font-semibold capitalize">${dia}</th>`;
   });
   html += '</tr></thead>';
   
-  // Cuerpo
   html += '<tbody>';
   data.bloques.forEach(bloque => {
-    html += `<tr><td class="border border-gray-300 p-2 text-center font-medium bg-gray-50">Bloque ${bloque}</td>`;
+    html += `<tr class="odd:bg-white/0 even:bg-white/5"><td class="border border-white/10 p-2 text-center font-medium">Bloque ${bloque}</td>`;
     
     data.dias.forEach(dia => {
       const horario = data.horarios.find(h => h.dia === dia && h.bloque === bloque);
-      html += '<td class="border border-gray-300 p-2 text-center min-h-[60px]">';
+      html += '<td class="border border-white/10 p-2 text-center h-24 align-middle">';
       
       if (horario) {
-        html += `<div class="text-sm p-1 rounded bg-blue-100">
-          <div class="font-semibold text-blue-700">${horario.materia}</div>
-          <div class="text-gray-600 text-xs">${horario.profesor}</div>
-          <div class="text-gray-500 text-xs">${horario.aula}</div>
+        const palette = [
+          'from-rose-400/15 to-amber-300/10',
+          'from-fuchsia-400/15 to-rose-300/10',
+          'from-sky-400/15 to-cyan-300/10',
+          'from-emerald-400/15 to-lime-300/10',
+          'from-indigo-400/15 to-blue-300/10',
+          'from-violet-400/15 to-purple-300/10',
+          'from-teal-400/15 to-emerald-300/10',
+          'from-orange-400/15 to-yellow-300/10'
+        ];
+        const idx = Math.abs((horario.materia || '').split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % palette.length;
+        const grad = palette[idx];
+        html += `<div class="text-sm p-2 rounded-xl border border-white/10 bg-gradient-to-br ${grad} shadow-sm shadow-black/10 ring-1 ring-white/10 h-20 w-full flex flex-col items-center justify-center">
+          <div class="font-semibold text-white leading-tight text-center drop-shadow">${horario.materia}</div>
+          <div class="text-gray-100/90 text-xs leading-tight text-center">${horario.profesor}</div>
+          <div class="text-gray-200/90 text-xs leading-tight text-center">${horario.aula}</div>
         </div>`;
       }
       
@@ -639,9 +683,176 @@ function initProgresoGA() {
   window.__gaPoller = setInterval(poll, 2000);
 }
 // Auto iniciar en dashboard
-if (window.location.pathname === '/dashboard/') {
+if (window.location.pathname.startsWith('/dashboard')) {
   document.addEventListener('DOMContentLoaded', initProgresoGA);
   document.addEventListener('DOMContentLoaded', initDragAndDrop);
+}
+
+function initDragAndDrop() {
+  let dragItem = null;
+  let origin = null;
+  let hover = null;
+
+  function slotOcupado(slot) {
+    return !!slot.querySelector('.draggable-item');
+  }
+  function hayConflictoProfesor(profesor, dia, bloque, ignorarIds = new Set(), originCurso = null) {
+    const items = document.querySelectorAll('.draggable-item');
+    for (const it of items) {
+      if (ignorarIds.has(it.dataset.id)) continue;
+      if (it.dataset.profesor !== profesor) continue;
+      const parent = it.closest('.slot-celda');
+      if (!parent) continue;
+      // Conflicto si el mismo profe ya está en ese día/bloque en OTRO curso
+      if (parent.dataset.dia === dia && parent.dataset.bloque === bloque) {
+        if (!originCurso || parent.dataset.curso !== originCurso) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  function esDropPermitido(item, slot) {
+    if (!item || !slot || !origin) return false;
+    const profesor = item.dataset.profesor;
+    const dia = slot.dataset.dia;
+    const bloque = slot.dataset.bloque;
+    const originCurso = origin.dataset.curso;
+    const targetCurso = slot.dataset.curso;
+    // Solo permitir mover dentro del mismo curso (misma fila)
+    if (originCurso !== targetCurso) return false;
+    const ocupado = slotOcupado(slot);
+    // Si está ocupado, permitir solo si es el mismo curso (swap). Ya garantizado arriba.
+    // Prevalidar conflicto de profesor en otros cursos
+    const ignorar = new Set([item.dataset.id]);
+    const existing = slot.querySelector('.draggable-item');
+    if (existing) ignorar.add(existing.dataset.id); // Ignorar ocupante en caso de swap dentro del mismo curso
+    if (hayConflictoProfesor(profesor, dia, bloque, ignorar, originCurso)) return false;
+    return true;
+  }
+
+  async function enviarMovimiento(horarioId, nuevoDia, nuevoBloque, originSlot, targetSlot, swappedCard) {
+    const csrftoken = getCookie('csrftoken');
+    try {
+      const res = await fetch('/mover-horario-ajax/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+          horario_id: horarioId,
+          nuevo_dia: nuevoDia,
+          nuevo_bloque: nuevoBloque
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        // Revertir UI si hay error del servidor (validación profesor ocupado, etc.)
+        if (dragItem && originSlot) originSlot.appendChild(dragItem);
+        if (swappedCard && targetSlot) targetSlot.appendChild(swappedCard);
+        mostrarMensaje(`❌ ${data.error || 'Movimiento inválido'}`, 'error');
+        return false;
+      }
+      mostrarMensaje('✅ Movimiento aplicado', 'success');
+      return true;
+    } catch (err) {
+      if (dragItem && originSlot) originSlot.appendChild(dragItem);
+      if (swappedCard && targetSlot) targetSlot.appendChild(swappedCard);
+      mostrarMensaje(`❌ Error de red: ${err}`, 'error');
+      return false;
+    }
+  }
+  // Document-level handlers to ensure droppable cursor over nested elements
+  document.addEventListener('dragover', (e) => {
+    const slot = e.target.closest && e.target.closest('.slot-celda');
+    if (!slot) return;
+    const allowed = esDropPermitido(dragItem, slot);
+    if (allowed) {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      if (hover && hover !== slot) {
+        hover.classList.remove('ring-2','ring-green-500/60','border-dashed','ring-red-500/70','cursor-not-allowed');
+      }
+      slot.classList.add('ring-2','ring-green-500/60','border-dashed');
+      slot.classList.remove('ring-red-500/70','cursor-not-allowed');
+    } else {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+      if (hover && hover !== slot) {
+        hover.classList.remove('ring-2','ring-green-500/60','border-dashed','ring-red-500/70','cursor-not-allowed');
+      }
+      slot.classList.add('ring-2','ring-red-500/70','cursor-not-allowed');
+      slot.classList.remove('ring-green-500/60','border-dashed');
+    }
+    hover = slot;
+  }, true);
+  document.addEventListener('drop', (e) => {
+    const slot = e.target.closest && e.target.closest('.slot-celda');
+    if (!slot) return;
+    e.preventDefault();
+    slot.classList.remove('ring-2','ring-green-500/60','border-dashed','ring-red-500/70','cursor-not-allowed');
+    hover = null;
+    if (!dragItem || slot === origin) return;
+
+    // Prevalidación estricta
+    if (!esDropPermitido(dragItem, slot)) {
+      mostrarMensaje('❌ Movimiento no permitido: bloque ocupado o conflicto de profesor', 'error');
+      return;
+    }
+
+    const existing = slot.querySelector('.draggable-item'); // Por regla 1 no debería existir
+    const originSlot = origin;
+    const targetSlot = slot;
+
+    // Leer destino
+    const horarioId = dragItem.dataset.id;
+    const nuevoDia = targetSlot.dataset.dia;
+    const nuevoBloque = targetSlot.dataset.bloque;
+
+    // Movimiento optimista en UI
+    if (existing) originSlot.appendChild(existing);
+    targetSlot.appendChild(dragItem);
+
+    // Validar y persistir en servidor (revierte si falla)
+    enviarMovimiento(horarioId, nuevoDia, nuevoBloque, originSlot, targetSlot, existing);
+  }, true);
+  document.querySelectorAll('.slot-celda').forEach(s => {
+    s.addEventListener('dragover', e => { 
+      // Manejado por document-level
+      e.preventDefault();
+    });
+    s.addEventListener('dragenter', e => { e.preventDefault(); });
+    s.addEventListener('dragleave', () => {});
+    s.addEventListener('drop', e => {
+      // Drop centralizado arriba
+      e.preventDefault();
+    });
+  });
+  document.querySelectorAll('.draggable-item').forEach(d => {
+    d.addEventListener('dragstart', e => {
+      dragItem = d;
+      origin = d.parentElement;
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', d.id || 'card'); } catch(_) {}
+      d.classList.add('opacity-70');
+      // Resaltar todos los slots permitidos
+      document.querySelectorAll('.slot-celda').forEach(s => {
+        if (esDropPermitido(d, s)) {
+          s.classList.add('ring-2','ring-green-500/60','border-dashed');
+        } else {
+          s.classList.add('ring-2','ring-red-500/50','cursor-not-allowed');
+        }
+      });
+    });
+    d.addEventListener('dragend', () => {
+      if (dragItem) dragItem.classList.remove('opacity-70');
+      dragItem = null;
+      origin = null;
+      document.querySelectorAll('.slot-celda').forEach(el => el.classList.remove('ring-2','ring-green-500/60','border-dashed','ring-red-500/50','cursor-not-allowed'));
+    });
+  });
 }
 
 // Helper para obtener CSRF token
@@ -660,8 +871,8 @@ function getCookie(name) {
     return cookieValue;
 }
 
-// Funcionalidad Drag and Drop
-function initDragAndDrop() {
+// Funcionalidad Drag and Drop (legado para otras vistas antiguas)
+function initDragAndDropLegacy() {
   const draggables = document.querySelectorAll('.draggable-item');
   const dropTargets = document.querySelectorAll('.drop-target');
   

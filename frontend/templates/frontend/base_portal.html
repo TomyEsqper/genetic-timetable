@@ -1,0 +1,102 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Genetic Timetable | Portal{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {"50":"#eff6ff","100":"#dbeafe","200":"#bfdbfe","300":"#93c5fd","400":"#60a5fa","500":"#3b82f6","600":"#2563eb","700":"#1d4ed8","800":"#1e40af","900":"#1e3a8a","950":"#172554"}
+                    }
+                },
+                fontFamily: {
+                    'body': ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'],
+                    'sans': ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji']
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .blob {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: linear-gradient(180deg, rgba(37, 99, 235, 0.2) 0%, rgba(147, 51, 234, 0.2) 100%);
+            filter: blur(80px);
+            border-radius: 50%;
+            z-index: -1;
+        }
+        .nav-link-active {
+            color: #60a5fa;
+            border-bottom: 2px solid #60a5fa;
+        }
+        .text-gray-500 { color: #cbd5e1 !important; }
+        .text-gray-400 { color: #9ca3af !important; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-[#0b0f19] text-gray-100 font-sans overflow-x-hidden min-h-screen flex flex-col">
+
+    <!-- Blobs de fondo -->
+    <div class="blob top-[-10%] left-[-10%] animate-pulse"></div>
+    <div class="blob bottom-[-10%] right-[-10%] animate-pulse" style="animation-delay: 2s;"></div>
+
+    <!-- Navegación -->
+    <nav class="fixed w-full z-50 top-0 glass border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="{% url 'index' %}" class="flex items-center gap-3">
+                    <div class="bg-primary-600 p-2 rounded-lg">
+                        <i class="fas fa-dna text-white text-xl"></i>
+                    </div>
+                    <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-purple-400">
+                        Genetic Timetable
+                    </span>
+                </a>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="{% url 'dashboard_portal' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:text-primary-400 transition {% if '/portal/dashboard/' in request.path %}nav-link-active{% endif %}">Dashboard</a>
+                        <a href="{% url 'how_to_portal' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:text-primary-400 transition {% if '/como-probar/' in request.path %}nav-link-active{% endif %}">¿Cómo probar?</a>
+                        <a href="{% url 'docs_portal' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:text-primary-400 transition {% if '/documentacion/' in request.path %}nav-link-active{% endif %}">Documentación</a>
+                        <a href="{% url 'panel_coordinador' %}" class="ml-4 bg-primary-600 hover:bg-primary-700 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
+                            <i class="fas fa-rocket"></i> Ir al Panel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <main class="flex-grow pt-24">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-12 border-t border-gray-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <div class="flex justify-center gap-6 mb-8 text-gray-500">
+                <a href="https://github.com/TomyEsqper" target="_blank" rel="noopener noreferrer" class="hover:text-white transition"><i class="fab fa-github text-2xl"></i></a>
+                <a href="https://www.linkedin.com/in/tom%C3%A1s-esquivel-perdomo-46047b300/" target="_blank" rel="noopener noreferrer" class="hover:text-white transition"><i class="fab fa-linkedin text-2xl"></i></a>
+            </div>
+            <p class="text-gray-600 text-sm">
+                &copy; 2026 Genetic Timetable Project. Desarrollado para optimización académica de alto nivel.
+            </p>
+        </div>
+    </footer>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
