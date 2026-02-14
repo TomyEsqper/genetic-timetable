@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Horario {{ curso.nombre }}</title>
+  <style>
+    body{font-family:DejaVu Sans,Arial,sans-serif;font-size:12px;color:#111}
+    h1{font-size:18px;margin:0 0 10px}
+    table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid #444;padding:6px;text-align:center}
+    th{background:#eee}
+    .meta{margin-bottom:12px}
+  </style>
+  </head>
+<body>
+  <div class="meta">
+    <h1>Horario del curso {{ curso.nombre }}</h1>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Bloque</th>
+        {% for d in dias %}
+          <th>{{ d|title }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in bloques %}
+        <tr>
+          <td>Bloque {{ b }}</td>
+          {% for d in dias %}
+            <td>
+              {% for h in horarios %}
+                {% if h.dia == d and h.bloque == b %}
+                  <div><strong>{{ h.materia.nombre }}</strong></div>
+                  <div>{{ h.profesor.nombre }}</div>
+                  <div>{{ h.aula.nombre }}</div>
+                {% endif %}
+              {% endfor %}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
