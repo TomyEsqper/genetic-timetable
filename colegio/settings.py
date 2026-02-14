@@ -164,7 +164,7 @@ else:
             'ENGINE': DB_ENGINE,
             'NAME': config('DB_NAME', default='genetic_timetable'),
             'USER': config('DB_USER', default='root'),
-            'PASSWORD': config('DB_PASSWORD'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='3306'),
         }
