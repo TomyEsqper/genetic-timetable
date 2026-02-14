@@ -19,6 +19,8 @@ urlpatterns = [
     path('progreso-ajax/', views.progreso_ajax, name='progreso_ajax'),
     path('limpiar-cache-progreso/', views.limpiar_cache_progreso, name='limpiar_cache_progreso'),
     path('generar-horario/', views.generar_horario, name='generar_horario'),
+    # Alias de compatibilidad para enlaces antiguos
+    path('generar/', views.generar_horario, name='generar_horario_alias'),
     path('pdf/curso/<int:curso_id>/', views.pdf_curso, name='pdf_curso'),
     path('descargar-excel/', views.descargar_excel, name='descargar_excel'),
     path('mover-horario-ajax/', views.mover_horario_ajax, name='mover_horario_ajax'),
