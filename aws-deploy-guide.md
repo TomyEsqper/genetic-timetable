@@ -54,6 +54,7 @@ Asegúrate de que tu archivo `.env` en el servidor contenga la IP correcta:
 PROD_IP=18.188.89.221
 ALLOWED_HOSTS=localhost,127.0.0.1,18.188.89.221
 CSRF_TRUSTED_ORIGINS=https://18.188.89.221,http://18.188.89.221
+SENTRY_DSN=tu_url_de_sentry_aqui
 ```
 
 ---
@@ -134,6 +135,24 @@ docker compose -f docker-compose.prod.yml exec web python manage.py createcachet
 Si la web se ve "fea" o cambiaste CSS/JS:
 ```bash
 docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
+```
+
+### 4. Limpieza de Disco (Mantenimiento Proactivo)
+El pipeline de CI/CD ya limpia imágenes antiguas automáticamente, pero si necesitas liberar espacio manualmente:
+
+```bash
+# Eliminar imágenes huérfanas (dangling)
+docker image prune
+
+# Limpieza total (imágenes no usadas, redes y cache de construcción)
+# CUIDADO: Esto obligará a descargar todo de nuevo en el próximo deploy
+docker system prune -af
+```
+
+**Monitoreo de Espacio:**
+El despliegue ahora fallará o emitirá una alerta si el disco supera el **90%**. Puedes revisarlo manualmente con:
+```bash
+df -h /
 ```
 
 ### 4. Crear Administrador

@@ -16,6 +16,7 @@ from datetime import timedelta
 from decouple import config, Csv
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.celery import CeleryIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,14 +26,22 @@ SENTRY_DSN = config('SENTRY_DSN', default=None)
 if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
-        integrations=[DjangoIntegration()],
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+        ],
         # Set traces_sample_rate to 1.0 to capture 100%
         # of transactions for performance monitoring.
-        traces_sample_rate=0.1,
+        traces_sample_rate=0.2,  # Aumentado para mejor visibilidad en prod
         # Set profiles_sample_rate to 1.0 to profile 100%
         # of sampled transactions.
         profiles_sample_rate=0.1,
-        send_default_pii=True
+        send_default_pii=True,
+        # Filtrar errores comunes que no son críticos
+        ignore_errors=[
+            'django.security.DisallowedHost',
+            'django.http.Http404',
+        ],
     )
 
 
@@ -84,11 +93,15 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/day',
-        'user': '1000/day'
+        'user': '1000/day',
+        'burst': '60/min',      # Límite para ráfagas
+        'sustained': '1000/day', # Límite diario para usuarios
+        'solver': '10/hour',    # El motor es pesado, limitamos su uso
     }
 }
 
@@ -226,6 +239,7 @@ if ENABLE_HTTPS:
     SECURE_HSTS_PRELOAD = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+    SECURE_REFERRER_POLICY = 'same-origin'
     
     # CSRF_TRUSTED_ORIGINS ya se definió arriba globalmente o se ajusta aquí
     CSRF_TRUSTED_ORIGINS = [

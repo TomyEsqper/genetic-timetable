@@ -58,19 +58,14 @@ class GeneradorDemandFirst:
     def generar_horarios(self, semilla: Optional[int] = None, **kwargs) -> Dict:
         """
         Genera horarios completos usando lógica demand-first.
-        
-        Args:
-            semilla: Semilla para reproducibilidad
-            **kwargs: Parámetros adicionales de configuración
-            
-        Returns:
-            Dict con resultado de generación
         """
         if semilla:
             self.random.seed(semilla)
             random.seed(semilla)
         
         inicio_tiempo = time.time()
+        tiempos_fases = {}
+        
         logger.info("Iniciando generación demand-first")
         
         # Sentry Context
@@ -79,48 +74,59 @@ class GeneradorDemandFirst:
             sentry_sdk.set_tag("semilla", semilla)
         
         # 1. Validar precondiciones
+        t_val_inicio = time.time()
         with sentry_sdk.start_span(op="validation", description="Validar Precondiciones"):
             resultado_factibilidad = self.validador_precondiciones.validar_factibilidad_completa()
+        tiempos_fases['precondiciones'] = time.time() - t_val_inicio
         
         if not resultado_factibilidad.es_factible:
             return {
                 'exito': False,
                 'razon': 'Precondiciones no cumplidas',
                 'factibilidad': resultado_factibilidad,
-                'tiempo_total': time.time() - inicio_tiempo
+                'tiempo_total': time.time() - inicio_tiempo,
+                'tiempos_fases': tiempos_fases
             }
         
         # 2. Construcción inicial demand-first
         max_reintentos = kwargs.get('max_reintentos_construccion', 10)
         estado_inicial = None
         
+        t_const_inicio = time.time()
         with sentry_sdk.start_span(op="algorithm.construction", description="Construcción Inicial"):
             for i in range(max_reintentos):
+                t_intento_inicio = time.time()
                 with sentry_sdk.start_span(op="algorithm.construction.attempt", description=f"Intento {i+1}"):
                     logger.info(f"Intento de construcción {i + 1}/{max_reintentos}")
                     estado_inicial = self._construccion_inicial()
                     if estado_inicial.es_valido:
-                        logger.info(f"Construcción exitosa en intento {i + 1}")
+                        logger.info(f"Construcción exitosa en intento {i + 1} ({time.time() - t_intento_inicio:.2f}s)")
                         break
                     else:
-                        logger.warning(f"Intento {i + 1} fallido: {len(estado_inicial.cursos_completos)}/{Curso.objects.count()} cursos completos")
+                        logger.warning(f"Intento {i + 1} fallido en {time.time() - t_intento_inicio:.2f}s: {len(estado_inicial.cursos_completos)}/{Curso.objects.count()} cursos completos")
+        tiempos_fases['construccion'] = time.time() - t_const_inicio
         
         if not estado_inicial or not estado_inicial.es_valido:
             return {
                 'exito': False,
                 'razon': 'No se pudo construir solución inicial válida tras varios intentos',
                 'estado': estado_inicial,
-                'tiempo_total': time.time() - inicio_tiempo
+                'tiempo_total': time.time() - inicio_tiempo,
+                'tiempos_fases': tiempos_fases
             }
         
         # 3. Reparación y mejora iterativa
+        t_mejora_inicio = time.time()
         with sentry_sdk.start_span(op="algorithm.improvement", description="Mejora Iterativa"):
             estado_final = self._mejora_iterativa(estado_inicial, kwargs)
+        tiempos_fases['mejora'] = time.time() - t_mejora_inicio
         
         # 4. Validación final
+        t_val_final_inicio = time.time()
         with sentry_sdk.start_span(op="validation", description="Validación Final"):
             horarios_dict = self._convertir_a_diccionarios(estado_final.slots)
             validacion_final = self.validador_reglas.validar_solucion_completa(horarios_dict)
+        tiempos_fases['validacion_final'] = time.time() - t_val_final_inicio
         
         tiempo_total = time.time() - inicio_tiempo
         
@@ -129,16 +135,15 @@ class GeneradorDemandFirst:
             'horarios': horarios_dict,
             'validacion_final': validacion_final,
             'calidad': estado_final.calidad_actual,
+            'tiempos_fases': tiempos_fases,
             'estadisticas': {
                 'slots_generados': len(estado_final.slots),
                 'cursos_completos': len(estado_final.cursos_completos),
-                'tiempo_construccion': tiempo_total * 0.7,  # Aproximación
-                'tiempo_mejora': tiempo_total * 0.3,
                 'tiempo_total': tiempo_total
             }
         }
         
-        logger.info(f"Generación completada en {tiempo_total:.2f}s - Éxito: {resultado['exito']}")
+        logger.info(f"Generación completada en {tiempo_total:.2f}s - Fases: {tiempos_fases}")
         return resultado
     
     def _obtener_configuracion(self) -> Dict:
@@ -225,6 +230,10 @@ class GeneradorDemandFirst:
         # 1. Identificar requerimientos (Prioridad: CursoMateriaRequerida > MateriaGrado)
         requerimientos = []
         
+        # Cache de requerimientos
+        if not hasattr(self, '_cache_requerimientos_grado'):
+            self._cache_requerimientos_grado = {}
+
         # Intentar cargar configuración específica
         cmr_qs = CursoMateriaRequerida.objects.filter(
             curso=curso,
@@ -236,21 +245,28 @@ class GeneradorDemandFirst:
                 requerimientos.append((cmr.materia, cmr.bloques_requeridos))
         else:
             # Fallback: Configuración estándar por grado (Adaptabilidad)
-            mgs = MateriaGrado.objects.filter(
-                grado=curso.grado,
-                materia__es_relleno=False
-            ).select_related('materia')
+            if curso.grado_id not in self._cache_requerimientos_grado:
+                mgs = MateriaGrado.objects.filter(
+                    grado=curso.grado,
+                    materia__es_relleno=False
+                ).select_related('materia')
+                
+                self._cache_requerimientos_grado[curso.grado_id] = [(mg.materia, mg.materia.bloques_por_semana) for mg in mgs]
             
-            for mg in mgs:
-                requerimientos.append((mg.materia, mg.materia.bloques_por_semana))
+            requerimientos = self._cache_requerimientos_grado[curso.grado_id]
         
         # Ordenar requerimientos por heurística:
         # 1. Menos profesores aptos (más restrictivo) -> Primero
         # 2. Más bloques requeridos (más difícil de encajar) -> Primero
-        # Esto ayuda a que materias como 'Actividad Complementaria' (pocos profes) se asignen antes
+        if not hasattr(self, '_cache_profes_aptos'):
+            self._cache_profes_aptos = {}
+
         requerimientos_con_score = []
         for materia, bloques in requerimientos:
-            num_profesores = Profesor.objects.filter(materiaprofesor__materia=materia).count()
+            if materia.id not in self._cache_profes_aptos:
+                self._cache_profes_aptos[materia.id] = list(Profesor.objects.filter(materiaprofesor__materia=materia))
+            
+            num_profesores = len(self._cache_profes_aptos[materia.id])
             requerimientos_con_score.append((materia, bloques, num_profesores))
         
         requerimientos_con_score.sort(key=lambda x: (x[2], -x[1]))
@@ -265,12 +281,9 @@ class GeneradorDemandFirst:
         self.random.shuffle(slots_disponibles)
         
         # Asignar cada materia obligatoria
-        # [DEBUG] Log order
-        logger.debug(f"Orden de asignación para {curso.nombre}: {[m.nombre for m, _ in requerimientos]}")
-        
         for materia, bloques_requeridos in requerimientos:
-            # Obtener profesores aptos
-            profesores_aptos = list(Profesor.objects.filter(materiaprofesor__materia=materia))
+            # Obtener profesores aptos de la cache
+            profesores_aptos = self._cache_profes_aptos[materia.id]
             if not profesores_aptos:
                 logger.warning(f"No hay profesores aptos para {materia.nombre}")
                 continue
@@ -309,8 +322,6 @@ class GeneradorDemandFirst:
                     slots.append(slot)
                     profesores_ocupados.add((profesor_asignado.id, dia, bloque))
                     bloques_asignados += 1
-                    
-                    logger.debug(f"Asignado: {curso.nombre} - {materia.nombre} - {profesor_asignado.nombre} - {dia} bloque {bloque}")
                 else:
                     # Devolver slot a la lista para intentar después
                     slots_disponibles.append((dia, bloque))

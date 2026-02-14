@@ -107,11 +107,23 @@ jobs:
             # Export Docker Hub User for compose variable substitution
             export DOCKER_HUB_USER=${{ env.DOCKER_HUB_USER }}
             
+            # Check disk space before pulling
+            DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+            echo "Current disk usage: ${DISK_USAGE}%"
+            if [ "$DISK_USAGE" -gt 90 ]; then
+              echo "WARNING: Disk space is critically low (${DISK_USAGE}%). Cleaning up before pull..."
+              docker system prune -af --volumes
+            fi
+
             # Pull latest images
             docker compose -f docker-compose.prod.yml pull
             
             # Restart containers with new images
             docker compose -f docker-compose.prod.yml up -d
             
-            # Prune old images to save space
-            docker image prune -f
+            # Prune old images and build cache to save space
+            docker image prune -af --filter "until=24h"
+            docker builder prune -f
+            
+            # Final disk check
+            df -h /

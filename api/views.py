@@ -77,6 +77,7 @@ class GenerarHorarioView(APIView):
     POST /api/generar-horario/
     """
     permission_classes = [IsAuthenticated]
+    throttle_scope = 'solver'
 
     def post(self, request):
         inicio_tiempo = time.time()
@@ -161,6 +162,7 @@ class GenerarHorarioView(APIView):
                     "status": "error",
                     "mensaje": "No se pudo generar una solución válida",
                     "errores": make_json_serializable(resultado.get('validacion_final', {})),
+                    "tiempos_fases": resultado.get('tiempos_fases', {}),
                     "tiempo_total_s": round(tiempo_total, 2),
                     "semilla": semilla,
                     "configuracion_usada": parametros,
@@ -175,6 +177,7 @@ class GenerarHorarioView(APIView):
                 return Response({
                     "status": "preview",
                     "differences": diffs,
+                    "tiempos_fases": resultado.get('tiempos_fases', {}),
                     "tiempo_total_s": round(tiempo_total, 2),
                     "semilla": semilla,
                     "log_path": logger_struct.archivo_log,
@@ -222,6 +225,7 @@ class GenerarHorarioView(APIView):
                 },
                 "solapes": 0,
                 "huecos": 0,
+                "tiempos_fases": resultado.get('tiempos_fases', {}),
                 "tiempo_total_s": round(tiempo_total, 2),
                 "semilla": semilla,
                 "asignaciones": horarios_generados,
@@ -680,7 +684,8 @@ class SolverView(APIView):
     Recibe un snapshot completo del problema (JSON), lo carga, resuelve y devuelve el resultado.
     Ideal para integración server-to-server.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+    throttle_scope = 'solver'
     def post(self, request):
         serializer = SolverInputSerializer(data=request.data)
         if not serializer.is_valid():

@@ -21,6 +21,7 @@ services:
       - ALLOWED_HOSTS=localhost,127.0.0.1,${PROD_IP}
       - ADMIN_URL=gestion-secreta/
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-prod-key-change-me}
+      - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       - redis
 
@@ -38,6 +39,7 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - DB_ENGINE=django.db.backends.sqlite3
       - C_FORCE_ROOT=1
+      - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       - redis
       - web

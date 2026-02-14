@@ -62,6 +62,7 @@ eventlet>=0.33.3  # Requerido para Celery en Windows
 pytest==8.0.0
 pytest-django>=4.5.0  # Testing para Django
 hypothesis==6.99.4
+locust>=2.24.0  # Pruebas de carga y estrés
 
 # Dependencias opcionales para optimización
 # Estas librerías mejoran el rendimiento pero no son estrictamente necesarias
