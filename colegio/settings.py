@@ -269,3 +269,12 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+if DEBUG:
+    CELERY_TASK_ALWAYS_EAGER = config('CELERY_TASK_ALWAYS_EAGER', default=True, cast=bool)
+    CELERY_TASK_EAGER_PROPAGATES = config('CELERY_TASK_EAGER_PROPAGATES', default=True, cast=bool)
+    CELERY_TASK_STORE_EAGER_RESULT = config('CELERY_TASK_STORE_EAGER_RESULT', default=True, cast=bool)
+    if CELERY_BROKER_URL.startswith('redis://') and config('FORCE_REDIS_LOCAL', default=False, cast=bool) is False:
+        CELERY_BROKER_URL = 'memory://'
+    if CELERY_RESULT_BACKEND.startswith('redis://') and config('FORCE_REDIS_LOCAL', default=False, cast=bool) is False:
+        CELERY_RESULT_BACKEND = 'cache+memory://'

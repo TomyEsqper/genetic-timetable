@@ -1,0 +1,347 @@
+{% extends 'frontend/base_portal.html' %}
+
+{% block title %}Documentación | Genetic Timetable{% endblock %}
+
+{% block content %}
+<section class="py-12 px-4">
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-12">
+            <h1 class="text-4xl font-bold mb-4">Documentación Técnica</h1>
+            <p class="text-gray-400">Todo lo que necesitas para integrar nuestro motor en tus aplicaciones.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Sidebar Docs -->
+            <div class="lg:col-span-1 space-y-4">
+                <div class="glass p-6 rounded-2xl sticky top-24">
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-6">Guías Rápidas</h3>
+                    <nav class="space-y-2">
+                        <a href="#autenticacion" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
+                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
+                                <i class="fas fa-lock w-5 text-center"></i> Autenticación JWT
+                            </span>
+                        </a>
+                        <a href="#endpoints" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
+                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
+                                <i class="fas fa-link w-5 text-center"></i> Endpoints API
+                            </span>
+                        </a>
+                        <a href="#algoritmo" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
+                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
+                                <i class="fas fa-microchip w-5 text-center"></i> El Algoritmo
+                            </span>
+                        </a>
+                        <a href="#fitness" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
+                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
+                                <i class="fas fa-balance-scale w-5 text-center"></i> Calidad (Fitness)
+                            </span>
+                        </a>
+                        <a href="#restricciones" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
+                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
+                                <i class="fas fa-tasks w-5 text-center"></i> Restricciones
+                            </span>
+                        </a>
+                        <a href="#curl" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
+                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
+                                <i class="fas fa-terminal w-5 text-center"></i> Ejemplos cURL
+                            </span>
+                        </a>
+                        <a href="#errores" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
+                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
+                                <i class="fas fa-exclamation-triangle w-5 text-center"></i> Errores comunes
+                            </span>
+                        </a>
+                        <a href="#cuerpos" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
+                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
+                                <i class="fas fa-file-code w-5 text-center"></i> Cuerpos JSON
+                            </span>
+                        </a>
+                        <a href="#faq" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
+                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
+                                <i class="fas fa-question-circle w-5 text-center"></i> FAQ Técnica
+                            </span>
+                        </a>
+                        <hr class="border-gray-800 my-4">
+                        <a href="/swagger/" target="_blank" class="block p-3 rounded-xl bg-primary-600 hover:bg-primary-700 transition text-center font-bold">
+                            <i class="fas fa-external-link-alt mr-2"></i> Swagger UI
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Content Docs -->
+            <div class="lg:col-span-2 space-y-12">
+                <!-- Auth Section -->
+                <div id="autenticacion" class="glass p-8 rounded-3xl">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-primary-400">
+                        <i class="fas fa-shield-alt"></i> Autenticación
+                    </h2>
+                    <p class="text-gray-400 mb-6 leading-relaxed">
+                        Nuestra API utiliza <b>JSON Web Tokens (JWT)</b> para asegurar cada petición. 
+                        Para obtener un token, debes enviar tus credenciales al endpoint de login.
+                    </p>
+                    <div class="bg-gray-900 rounded-xl p-4 font-mono text-sm border border-gray-800 overflow-x-auto">
+                        <span class="text-blue-400">POST</span> /api/token/<br>
+                        <span class="text-gray-500">// Request Body</span><br>
+                        {<br>
+                        &nbsp;&nbsp;"username": <span class="text-green-400">"tu_usuario"</span>,<br>
+                        &nbsp;&nbsp;"password": <span class="text-green-400">"tu_contraseña"</span><br>
+                        }
+                    </div>
+                </div>
+
+                <!-- Endpoints Section -->
+                <div id="endpoints" class="glass p-8 rounded-3xl">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-purple-400">
+                        <i class="fas fa-plug"></i> Principales Endpoints
+                    </h2>
+                    <div class="space-y-8">
+                        <div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="bg-blue-600 text-[10px] font-bold px-2 py-0.5 rounded">POST</span>
+                                <h4 class="font-bold text-gray-200">/api/horarios/generar/</h4>
+                            </div>
+                            <p class="text-sm text-gray-500 mb-4">Inicia el proceso del algoritmo genético de forma asíncrona.</p>
+                            <div class="bg-gray-900 rounded-xl p-4 font-mono text-xs border border-gray-800 mb-2">
+                                <span class="text-gray-500">// Payload Opcional</span><br>
+                                { <span class="text-green-400">"generaciones"</span>: <span class="text-orange-400">500</span>, <span class="text-green-400">"preview"</span>: <span class="text-orange-400">false</span> }
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="bg-green-600 text-[10px] font-bold px-2 py-0.5 rounded">GET</span>
+                                <h4 class="font-bold text-gray-200">/api/estado-sistema/</h4>
+                            </div>
+                            <p class="text-sm text-gray-500 mb-4">Conteo de recursos (cursos, profes, materias) y factor de ocupación.</p>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="bg-blue-600 text-[10px] font-bold px-2 py-0.5 rounded">POST</span>
+                                <h4 class="font-bold text-gray-200">/api/engine/solve/</h4>
+                            </div>
+                            <p class="text-sm text-gray-500 mb-4"><b>Stateless Solver</b>: Envía un JSON completo y recibe el horario resuelto sin guardar en BD.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- JSON Bodies (Structure Only) -->
+                <div id="cuerpos" class="glass p-8 rounded-3xl">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-blue-300">
+                        <i class="fas fa-file-code"></i> Cuerpos JSON (Estructura)
+                    </h2>
+                    <p class="text-xs text-gray-400 mb-4">Convenciones: &lt;string&gt;, &lt;int&gt;, &lt;bool&gt;, &lt;array&lt;T&gt;&gt;, objetos con claves simbólicas.</p>
+                    <div class="space-y-8">
+                        <div>
+                            <p class="text-sm font-bold mb-2 text-gray-200"><span class="bg-blue-600 px-2 py-0.5 rounded text-[10px] font-bold">POST</span> /api/engine/solve/</p>
+                            <div class="bg-gray-900 rounded-xl p-4 font-mono text-xs border border-gray-800 overflow-x-auto">
+<pre>{
+  "configuracion": {
+    "dias_clase": "&lt;string&gt;",
+    "bloques_por_dia": &lt;int&gt;,
+    "duracion_bloque": &lt;int&gt;,
+    "jornada": "&lt;string&gt;"
+  },
+  "materias": [
+    { "nombre": "&lt;string&gt;" }
+  ],
+  "profesores": [
+    {
+      "nombre": "&lt;string&gt;",
+      "materias_capaces": ["&lt;string&gt;", "..."],
+      "disponibilidad": [
+        { "dia": "&lt;string&gt;", "bloque_inicio": &lt;int&gt;, "bloque_fin": &lt;int&gt; }
+      ]
+    }
+  ],
+  "cursos": [
+    {
+      "nombre": "&lt;string&gt;",
+      "grado": "&lt;string|int&gt;",
+      "plan_estudios": { "&lt;string&gt;": &lt;int&gt;, "...": &lt;int&gt; }
+    }
+  ]
+}</pre>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold mb-2 text-gray-200"><span class="bg-blue-600 px-2 py-0.5 rounded text-[10px] font-bold">POST</span> /api/horarios/generar/</p>
+                            <div class="bg-gray-900 rounded-xl p-4 font-mono text-xs border border-gray-800 overflow-x-auto">
+<pre>{
+  "semilla": &lt;int&gt;,
+  "generaciones": &lt;int&gt;,
+  "paciencia": &lt;int&gt;,
+  "preview": &lt;bool&gt;,
+  "async": &lt;bool&gt;
+}</pre>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold mb-2 text-gray-200"><span class="bg-blue-600 px-2 py-0.5 rounded text-[10px] font-bold">POST</span> /api/token/</p>
+                            <div class="bg-gray-900 rounded-xl p-4 font-mono text-xs border border-gray-800 overflow-x-auto">
+<pre>{
+  "username": "&lt;string&gt;",
+  "password": "&lt;string&gt;"
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fitness Section -->
+                <div id="fitness" class="glass p-8 rounded-3xl">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-yellow-400">
+                        <i class="fas fa-balance-scale"></i> Función de Fitness
+                    </h2>
+                    <p class="text-gray-400 text-sm mb-6 leading-relaxed">
+                        La "calidad" de un horario se calcula mediante una suma ponderada de objetivos (0.0 a 100.0):
+                    </p>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                            <span class="text-gray-300">Minimización de Huecos (Estudiantes)</span>
+                            <span class="text-primary-400 font-bold">40%</span>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                            <span class="text-gray-300">Distribución Semanal Equilibrada</span>
+                            <span class="text-purple-400 font-bold">30%</span>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                            <span class="text-gray-300">Consecutividad Pedagógica</span>
+                            <span class="text-orange-400 font-bold">20%</span>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                            <span class="text-gray-300">Compactibilidad Docente</span>
+                            <span class="text-green-400 font-bold">10%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Algorithm Section -->
+                <div id="algoritmo" class="glass p-8 rounded-3xl">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-orange-400">
+                        <i class="fas fa-dna"></i> El Motor Evolutivo
+                    </h2>
+                    <p class="text-gray-400 leading-relaxed mb-6">
+                        El motor utiliza una población de horarios aleatorios que "evolucionan" a través de generaciones. 
+                        Basado en <b>Darwinismo computacional</b>, seleccionamos los mejores especímenes para cruzarlos y mutarlos.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <h5 class="font-bold text-sm mb-2 text-primary-400">Población</h5>
+                            <p class="text-xs text-gray-500">Iniciamos con 100 horarios base generados al azar.</p>
+                        </div>
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <h5 class="font-bold text-sm mb-2 text-purple-400">Crossover</h5>
+                            <p class="text-xs text-gray-500">Mezclamos genes de dos horarios exitosos.</p>
+                        </div>
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <h5 class="font-bold text-sm mb-2 text-orange-400">Mutación</h5>
+                            <p class="text-xs text-gray-500">Cambiamos slots al azar para evitar óptimos locales.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restricciones Section -->
+                <div id="restricciones" class="glass p-8 rounded-3xl">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-red-400">
+                        <i class="fas fa-shield-virus"></i> Reglas de Negocio
+                    </h2>
+                    <div class="space-y-6">
+                        <div class="flex gap-4">
+                            <div class="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0">
+                                <i class="fas fa-ban"></i>
+                            </div>
+                            <div>
+                                <h5 class="font-bold">Hard Constraints (Obligatorias)</h5>
+                                <p class="text-sm text-gray-500">Conflictos que el motor <b>jamás</b> permitirá, como un profesor en dos lugares al mismo tiempo.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">
+                                <i class="fas fa-feather"></i>
+                            </div>
+                            <div>
+                                <h5 class="font-bold">Soft Constraints (Deseables)</h5>
+                                <p class="text-sm text-gray-500">Preferencias que el motor intentará cumplir, como evitar "huecos" en el horario de los alumnos.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- cURL Examples -->
+                <div id="curl" class="glass p-8 rounded-3xl">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-primary-300">
+                        <i class="fas fa-terminal"></i> Ejemplos cURL
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-xs">
+                        <div class="bg-black/40 p-4 rounded-2xl border border-white/5">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-2">Token (Demo)</p>
+                            <pre class="text-gray-200 whitespace-pre-wrap">curl -X POST http://127.0.0.1:8000/api/auth/guest/</pre>
+                        </div>
+                        <div class="bg-black/40 p-4 rounded-2xl border border-white/5">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-2">Estado del Sistema</p>
+                            <pre class="text-gray-200 whitespace-pre-wrap">curl -H "Authorization: Bearer &lt;TOKEN&gt;" http://127.0.0.1:8000/api/estado-sistema/</pre>
+                        </div>
+                        <div class="bg-black/40 p-4 rounded-2xl border border-white/5">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-2">Generar (preview)</p>
+                            <pre class="text-gray-200 whitespace-pre-wrap">curl -X POST http://127.0.0.1:8000/api/generar-horario/ ^
+-H "Content-Type: application/json" ^
+-H "Authorization: Bearer &lt;TOKEN&gt;" ^
+-d "{ \\"generaciones\\": 100, \\"preview\\": true }"</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Errores Comunes -->
+                <div id="errores" class="glass p-8 rounded-3xl">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-red-300">
+                        <i class="fas fa-exclamation-triangle"></i> Errores comunes
+                    </h2>
+                    <div class="space-y-4 text-sm">
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <p class="font-bold text-gray-200 mb-1">401 Unauthorized</p>
+                            <p class="text-gray-500">Token ausente o expirado. Renueva el token o usa el modo demo.</p>
+                        </div>
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <p class="font-bold text-gray-200 mb-1">400 Bad Request</p>
+                            <p class="text-gray-500">Payload inválido. Verifica los tipos y campos obligatorios.</p>
+                        </div>
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <p class="font-bold text-gray-200 mb-1">409 Conflict</p>
+                            <p class="text-gray-500">No se puede publicar por conflictos de aula o profesor. Revisa validaciones.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ Section -->
+                <div id="faq" class="glass p-8 rounded-3xl">
+                    <h2 class="text-2xl font-bold mb-8 flex items-center gap-3 text-green-400">
+                        <i class="fas fa-question-circle"></i> Preguntas Frecuentes
+                    </h2>
+                    <div class="space-y-6">
+                        <details class="group bg-white/5 rounded-2xl border border-white/5">
+                            <summary class="p-6 cursor-pointer font-bold flex justify-between items-center list-none">
+                                ¿Cuánto tiempo tarda en generar un horario?
+                                <i class="fas fa-chevron-down group-open:rotate-180 transition"></i>
+                            </summary>
+                            <div class="px-6 pb-6 text-gray-400 text-sm">
+                                Depende de la complejidad. Para una institución de 30 grupos y 50 profesores, suele tardar entre 2 y 5 segundos en alcanzar una convergencia del 98%.
+                            </div>
+                        </details>
+                        <details class="group bg-white/5 rounded-2xl border border-white/5">
+                            <summary class="p-6 cursor-pointer font-bold flex justify-between items-center list-none">
+                                ¿Puedo integrar esto con Google Calendar?
+                                <i class="fas fa-chevron-down group-open:rotate-180 transition"></i>
+                            </summary>
+                            <div class="px-6 pb-6 text-gray-400 text-sm">
+                                Sí, nuestra API devuelve los resultados en formato JSON compatible con el estándar iCal, facilitando la sincronización externa.
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

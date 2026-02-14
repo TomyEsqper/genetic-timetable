@@ -1,65 +1,82 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lista de Profesores - Generador de Horarios</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { primary: {"50":"#eff6ff","100":"#dbeafe","200":"#bfdbfe","300":"#93c5fd","400":"#60a5fa","500":"#3b82f6","600":"#2563eb","700":"#1d4ed8","800":"#1e40af","900":"#1e3a8a","950":"#172554"} }
+        }
+      }
+    }
+  </script>
+  <style>
+    .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+    .text-gray-500 { color: #cbd5e1 !important; }
+    .text-gray-400 { color: #9ca3af !important; }
+  </style>
 </head>
-<body class="bg-gray-100 font-sans p-6">
-  <div class="max-w-6xl mx-auto">
+<body class="bg-[#0b0f19] text-gray-100 font-sans p-6">
+  <div class="max-w-7xl mx-auto">
     <!-- Header -->
-    <div class="bg-white rounded shadow p-6 mb-6">
-      <h1 class="text-3xl font-bold text-blue-900 mb-4">👨‍🏫 Lista de Profesores</h1>
+    <div class="glass rounded-2xl p-6 mb-6 border border-white/10">
+      <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-extrabold mb-2 flex items-center gap-3"><i class="fas fa-user-tie text-green-400"></i> Lista de Profesores</h1>
+        <a href="{% url 'dashboard' %}" class="bg-primary-600 hover:bg-primary-700 px-4 py-2 rounded-lg text-sm font-bold transition"><i class="fas fa-chart-pie mr-2"></i> Resumen</a>
+      </div>
       
       <!-- Filtros -->
-      <div class="mb-6">
-        <form method="get" class="flex flex-wrap gap-4 items-end">
+      <div class="mt-4">
+        <form method="get" class="flex flex-wrap gap-4 items-end text-sm">
           <div>
             <label class="block text-sm font-medium mb-1">Buscar por nombre</label>
-            <input type="text" name="nombre" value="{{ request.GET.nombre }}" 
-                   placeholder="Ingrese nombre del profesor..."
-                   class="p-2 border rounded focus:ring-2 focus:ring-blue-500 w-64">
+            <input type="text" name="nombre" value="{{ request.GET.nombre }}" placeholder="Ingrese nombre del profesor..."
+                   class="p-2 bg-black/30 border border-white/10 rounded focus:ring-2 focus:ring-primary-500 w-64">
           </div>
-          <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
-            🔍 Buscar
+          <button type="submit" class="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 transition-colors">
+            <i class="fas fa-search mr-1"></i> Buscar
           </button>
-          <a href="{% url 'lista_profesores' %}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors">
-            🗑️ Limpiar
+          <a href="{% url 'lista_profesores' %}" class="glass text-white px-4 py-2 rounded hover:bg-white/10 transition-colors border border-white/10">
+            <i class="fas fa-eraser mr-1"></i> Limpiar
           </a>
         </form>
       </div>
     </div>
 
     <!-- Lista de profesores -->
-    <div class="bg-white rounded shadow p-6">
+    <div class="glass rounded-2xl p-6 border border-white/10">
       {% if page_obj %}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {% for profesor in page_obj %}
-          <div class="border rounded-lg p-4 hover:shadow-lg transition-shadow">
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition">
             <div class="flex justify-between items-start mb-3">
-              <h3 class="text-lg font-semibold text-gray-800">{{ profesor.nombre }}</h3>
-              <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Profesor</span>
+              <h3 class="text-lg font-semibold">{{ profesor.nombre }}</h3>
+              <span class="bg-green-600/20 text-green-300 text-xs px-2 py-1 rounded">Profesor</span>
             </div>
             
-            <div class="space-y-2 text-sm text-gray-600">
+            <div class="space-y-2 text-sm text-gray-500">
               <p><strong>ID:</strong> {{ profesor.id }}</p>
               <p><strong>Materias asignadas:</strong> 
                 {% with materias=profesor.materiaprofesor_set.all %}
                   {% if materias %}
                     {{ materias|length }} materia{{ materias|length|pluralize }}
                   {% else %}
-                    <span class="text-red-500">Sin materias asignadas</span>
+                    <span class="text-red-400">Sin materias asignadas</span>
                   {% endif %}
                 {% endwith %}
               </p>
               <p><strong>Disponibilidad:</strong> 
                 {% with disponibilidad=profesor.disponibilidadprofesor_set.all %}
                   {% if disponibilidad %}
-                    <span class="text-green-600">Registrada</span>
+                    <span class="text-green-400">Registrada</span>
                   {% else %}
-                    <span class="text-orange-500">No registrada</span>
+                    <span class="text-orange-400">No registrada</span>
                   {% endif %}
                 {% endwith %}
               </p>
@@ -67,12 +84,12 @@
             
             <div class="mt-4 flex gap-2">
               <a href="{% url 'horario_profesor' profesor.id %}" 
-                 class="flex-1 bg-blue-600 text-white text-center py-2 rounded hover:bg-blue-700 transition-colors text-sm">
+                 class="flex-1 bg-primary-600 text-white text-center py-2 rounded-xl hover:bg-primary-700 transition-colors text-sm">
                 Ver horario
               </a>
               <button onclick="verDetallesProfesor({{ profesor.id }})" 
-                      class="bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 transition-colors text-sm">
-                📋
+                      class="bg-purple-600 text-white px-3 py-2 rounded-xl hover:bg-purple-700 transition-colors text-sm">
+                <i class="fas fa-clipboard-list"></i>
               </button>
             </div>
           </div>
@@ -85,18 +102,18 @@
           <nav class="flex items-center space-x-2">
             {% if page_obj.has_previous %}
             <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.nombre %}&nombre={{ request.GET.nombre }}{% endif %}" 
-               class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+               class="px-3 py-2 glass rounded hover:bg-white/10 transition-colors">
               ← Anterior
             </a>
             {% endif %}
             
-            <span class="px-3 py-2 bg-blue-600 text-white rounded">
+            <span class="px-3 py-2 bg-primary-600 text-white rounded">
               Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
             </span>
             
             {% if page_obj.has_next %}
             <a href="?page={{ page_obj.next_page_number }}{% if request.GET.nombre %}&nombre={{ request.GET.nombre }}{% endif %}" 
-               class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+               class="px-3 py-2 glass rounded hover:bg-white/10 transition-colors">
               Siguiente →
             </a>
             {% endif %}
@@ -106,8 +123,8 @@
         
       {% else %}
         <div class="text-center py-12">
-          <div class="text-6xl text-gray-300 mb-4">👨‍🏫</div>
-          <h2 class="text-2xl font-bold text-gray-600 mb-2">No se encontraron profesores</h2>
+          <div class="text-6xl text-gray-600 mb-4">👨‍🏫</div>
+          <h2 class="text-2xl font-bold text-gray-300 mb-2">No se encontraron profesores</h2>
           <p class="text-gray-500">Intenta ajustar los filtros o crear nuevos profesores.</p>
         </div>
       {% endif %}
@@ -115,18 +132,18 @@
 
     <!-- Navegación -->
     <div class="mt-6 text-center">
-      <a href="{% url 'dashboard' %}" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors">
-        ⬅ Volver al Dashboard
+      <a href="{% url 'dashboard' %}" class="bg-primary-600 text-white px-6 py-2 rounded-xl hover:bg-primary-700 transition-colors">
+        ⬅ Volver al Resumen
       </a>
     </div>
   </div>
 
   <!-- Modal para detalles del profesor -->
-  <div id="modal-detalles" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+  <div id="modal-detalles" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50">
+    <div class="glass rounded-2xl p-6 max-w-md w-full mx-4 border border-white/10">
       <div class="flex justify-between items-center mb-4">
         <h3 class="text-lg font-semibold">Detalles del Profesor</h3>
-        <button onclick="cerrarModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+        <button onclick="cerrarModal()" class="text-gray-400 hover:text-white text-xl">&times;</button>
       </div>
       <div id="modal-content">
         <!-- Contenido dinámico -->
@@ -142,8 +159,8 @@
       
       content.innerHTML = `
         <div class="text-center py-4">
-          <div class="animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-          <p class="mt-2">Cargando detalles...</p>
+          <div class="animate-spin inline-block w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full"></div>
+          <p class="mt-2 text-gray-400">Cargando detalles...</p>
         </div>
       `;
       
@@ -153,10 +170,10 @@
       // Simular carga de datos (en una implementación real, esto sería una llamada AJAX)
       setTimeout(() => {
         content.innerHTML = `
-          <p class="text-gray-600 mb-4">Detalles del profesor ID: ${profesorId}</p>
+          <p class="text-gray-300 mb-4">Detalles del profesor ID: ${profesorId}</p>
           <p class="text-sm text-gray-500">Esta funcionalidad se puede expandir para mostrar información detallada del profesor.</p>
           <div class="mt-4 flex justify-end">
-            <button onclick="cerrarModal()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            <button onclick="cerrarModal()" class="bg-primary-600 text-white px-4 py-2 rounded-xl hover:bg-primary-700">
               Cerrar
             </button>
           </div>
