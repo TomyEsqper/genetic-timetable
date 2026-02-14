@@ -75,9 +75,9 @@
 
           <!-- Filas Bloques -->
           {% for bloque in bloques %}
-            <div class="grid grid-cols-6 gap-2 mb-2 min-h-[100px]">
+          <div class="grid grid-cols-6 gap-2 mb-2">
               <!-- Columna Hora -->
-              <div class="flex items-center justify-center bg-white/5 text-gray-300 font-bold rounded">
+            <div class="flex items-center justify-center bg-white/5 text-gray-300 font-bold rounded h-24">
                 {{ bloque }}
               </div>
 
@@ -87,7 +87,7 @@
                   id="slot-{{ dia }}-{{ bloque }}"
                   data-dia="{{ dia }}"
                   data-bloque="{{ bloque }}"
-                  class="slot-celda border-2 border-white/10 rounded p-2 bg-black/30 hover:bg-black/20 transition-colors relative flex flex-col justify-center items-center gap-1 min-h-[60px]"
+                class="slot-celda border-2 border-white/10 rounded p-2 bg-black/30 hover:bg-black/20 transition-colors relative flex flex-col justify-center items-center gap-1 h-24"
                 >
                   <!-- Aquí JS inyectará las clases -->
                 </div>
@@ -175,7 +175,20 @@
 
     function crearTarjetaClase(h) {
       const div = document.createElement('div');
-      div.className = 'draggable-item w-full h-full bg-primary-600/20 border border-primary-500/30 rounded p-2 text-xs shadow-sm select-none z-10 relative hover:shadow-md transition-shadow';
+      const palette = [
+        'from-rose-400/15 to-amber-300/10',
+        'from-fuchsia-400/15 to-rose-300/10',
+        'from-sky-400/15 to-cyan-300/10',
+        'from-emerald-400/15 to-lime-300/10',
+        'from-indigo-400/15 to-blue-300/10',
+        'from-violet-400/15 to-purple-300/10',
+        'from-teal-400/15 to-emerald-300/10',
+        'from-orange-400/15 to-yellow-300/10'
+      ];
+      const nombre = (h.materia || '').toString();
+      const idx = Math.abs(Array.from(nombre).reduce((a,c)=>a+c.charCodeAt(0),0)) % palette.length;
+      const grad = palette[idx];
+      div.className = `draggable-item w-full h-full border border-white/10 rounded-xl p-2 text-xs shadow-md shadow-black/20 ring-1 ring-white/10 select-none z-10 relative hover:shadow-lg transition-shadow bg-gradient-to-br ${grad} flex flex-col items-center justify-center`;
       
       div.style.cursor = 'move';
       div.style.userSelect = 'none';
@@ -192,10 +205,10 @@
       div.dataset.aula = h.aula;
 
       div.innerHTML = `
-        <div class="font-bold text-primary-300 text-center pointer-events-none">${h.materia}</div>
-        <div class="text-gray-400 text-center truncate pointer-events-none">${h.profesor}</div>
-        <div class="text-gray-500 text-center text-[10px] pointer-events-none">${h.aula}</div>
-        <div class="text-gray-400 text-center text-[9px] mt-1 pointer-events-none">${h.curso || ''}</div>
+        <div class="font-bold text-white text-center leading-tight pointer-events-none drop-shadow">${h.materia}</div>
+        <div class="text-gray-100 text-center truncate leading-tight pointer-events-none opacity-90">${h.profesor}</div>
+        <div class="text-gray-200 text-center text-[10px] leading-tight pointer-events-none opacity-90">${h.aula}</div>
+        <div class="text-gray-200 text-center text-[9px] mt-1 leading-tight pointer-events-none opacity-90">${h.curso || ''}</div>
       `;
 
       div.addEventListener('dragstart', handleDragStart);

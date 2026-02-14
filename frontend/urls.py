@@ -25,7 +25,7 @@ urlpatterns = [
     path('generar/', views.generar_horario, name='generar_horario'),
     path('validar/', views.validar_datos, name='validar_datos'),
 
-    path('dashboard/', views.dashboard, name='dashboard'),
+    path('dashboard/horarios/', views.dashboard, name='dashboard'),
 
     path('pdf/curso/<int:curso_id>/', views.pdf_curso, name='pdf_curso'),
 

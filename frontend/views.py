@@ -6,7 +6,7 @@ from django.db.models import Count, Q
 from django.template.loader import get_template
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from xhtml2pdf import pisa
 from django.http import HttpResponse
 from horarios.models import Curso, Profesor, Aula, Horario, MateriaGrado, MateriaProfesor, DisponibilidadProfesor, BloqueHorario
@@ -280,6 +280,7 @@ def generar_horario(request):
     else:
         return redirect('dashboard')
 
+@ensure_csrf_cookie
 def dashboard(request):
     # Optimizar todas las consultas con select_related y prefetch_related
     total_cursos = Curso.objects.count()

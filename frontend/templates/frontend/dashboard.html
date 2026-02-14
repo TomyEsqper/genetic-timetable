@@ -4,38 +4,190 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Generador de Horarios</title>
-  <!-- Configuración de Tailwind CSS -->
-  {% include 'frontend/components/tailwind_config.html' %}
+  <title>Dashboard de Horarios</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 font-sans p-6">
-  <div class="max-w-7xl mx-auto">
-    <!-- Header -->
-    {% include 'frontend/components/header.html' %}
-    
-    <!-- Mensajes del sistema -->
-    {% include 'frontend/components/messages.html' %}
-    
-    <!-- Estadísticas -->
-    {% include 'frontend/components/estadisticas.html' %}
-    
-    <!-- Validaciones -->
-    {% include 'frontend/components/validaciones.html' %}
-    
-    <!-- Formulario de generación -->
-    {% include 'frontend/components/formulario_generacion.html' %}
-    
-    <!-- Indicador de Progreso del Algoritmo -->
-    {% include 'frontend/components/progreso_algoritmo.html' %}
-    
-    <!-- Horario Semanal -->
-    {% include 'frontend/components/horario_semanal.html' %}
-    
-    <!-- Navegación -->
-    {% include 'frontend/components/navegacion.html' %}
+<body class="bg-[#0b0f19] text-gray-100 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <header class="flex items-center justify-between mb-8">
+      <div class="flex items-center gap-3">
+        <div class="bg-blue-600 p-2 rounded-lg text-white">
+          <i class="fas fa-chart-pie"></i>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold">Dashboard de Horarios</h1>
+          <p class="text-sm text-gray-400">Resumen y visualización de horarios generados</p>
+        </div>
+      </div>
+      <a href="{% url 'panel_coordinador' %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition">
+        Volver al Panel
+      </a>
+    </header>
+
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div class="rounded-xl p-5 border border-white/10 bg-white/5">
+        <div class="text-sm text-gray-400">Cursos</div>
+        <div id="total-cursos" class="text-3xl font-extrabold mt-1 text-white">{{ total_cursos|default:0 }}</div>
+      </div>
+      <div class="rounded-xl p-5 border border-white/10 bg-white/5">
+        <div class="text-sm text-gray-400">Profesores</div>
+        <div id="total-profesores" class="text-3xl font-extrabold mt-1 text-white">{{ total_profesores|default:0 }}</div>
+      </div>
+      <div class="rounded-xl p-5 border border-white/10 bg-white/5">
+        <div class="text-sm text-gray-400">Horarios</div>
+        <div id="total-horarios" class="text-3xl font-extrabold mt-1 text-white">{{ total_horarios|default:0 }}</div>
+      </div>
+      <div class="rounded-xl p-5 border border-white/10 bg-white/5">
+        <div class="text-sm text-gray-400">Aulas</div>
+        <div id="total-bloques" class="text-3xl font-extrabold mt-1 text-white">{{ estadisticas_horarios.aulas_unicas|default:0 }}</div>
+      </div>
+    </section>
+
+    <section id="progreso-algoritmo" class="rounded-xl p-6 mb-8 border border-white/10 bg-white/5 {% if total_horarios > 0 %}hidden{% endif %}">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-lg">Progreso de generación</h2>
+        <button id="detener-algoritmo" class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg">
+          Detener
+        </button>
+      </div>
+      <div class="space-y-3">
+        <div class="flex justify-between text-sm text-gray-300">
+          <div>Generación <span id="generacion-actual">0</span></div>
+          <div>Fitness <span id="fitness-actual">0.0</span></div>
+          <div>Horarios parciales <span id="horarios-parciales">0</span></div>
+          <div>Ocupación <span id="ocupacion-actual">0%</span></div>
+        </div>
+        <div class="w-full bg-gray-700 rounded-full h-3">
+          <div id="barra-progreso" class="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-3 rounded-full" style="width:0%"></div>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <div id="estado-texto" class="text-gray-200">Esperando inicio…</div>
+          <div class="text-gray-300 flex items-center gap-2">
+            <span id="progreso-porcentaje">0%</span>
+            <span class="text-gray-500">·</span>
+            <span id="estado-detallado">-</span>
+            <span class="text-gray-500">·</span>
+            <span>ETA <span id="tiempo-estimado">-</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-1">
+        <div class="rounded-xl p-6 border border-white/10 bg-white/5">
+          <h3 class="font-bold mb-4">Materias sin profesor</h3>
+          <ul class="list-disc pl-5 space-y-1 text-sm" id="profesores-sin-disponibilidad">
+            {% for m in materias_sin_profesor %}
+              <li class="text-orange-400">{{ m.grado.nombre }} · {{ m.materia.nombre }}</li>
+            {% empty %}
+              <li class="text-green-400">Sin pendientes críticos</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="rounded-xl p-6 mt-6 border border-white/10 bg-white/5">
+          <h3 class="font-bold mb-4">Explorar</h3>
+          <div class="space-y-2">
+            <a href="{% url 'lista_cursos' %}" class="block bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg">Cursos</a>
+            <a href="{% url 'lista_profesores' %}" class="block bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg">Profesores</a>
+          </div>
+        </div>
+      </div>
+      <div class="lg:col-span-2">
+        <div class="rounded-xl p-6 mb-4 flex items-center justify-between border border-white/10 bg-white/5">
+          <h3 class="font-bold">Visualización</h3>
+          <div class="flex gap-2">
+            <select id="selector-tipo" class="border rounded-lg px-3 py-1.5 bg-[#0b0f19] text-gray-100 border-white/10">
+              <option value="curso">Curso</option>
+              <option value="profesor">Profesor</option>
+              <option value="aula">Aula</option>
+            </select>
+            <input id="selector-id" type="number" min="1" placeholder="ID" class="border rounded-lg px-3 py-1.5 w-28 bg-[#0b0f19] text-gray-100 border-white/10">
+            <button class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-3 py-1.5 rounded-lg"
+                    onclick="(function(){var t=document.getElementById('selector-id').value; if(!t){alert('Ingresa un ID'); return;} cargarHorarioAjax(document.getElementById('selector-tipo').value, t);})()">
+              Cargar
+            </button>
+          </div>
+        </div>
+        <div id="horario-container" class="rounded-xl p-6 min-h-[240px] border border-white/10 bg-white/5"></div>
+      </div>
+    </section>
+
+    <section class="mt-10">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">Todos los horarios</h2>
+        <button id="btn-guardar-cambios" class="text-sm bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg">Guardar cambios</button>
+      </div>
+      <div class="space-y-8">
+        {% for curso, horarios in horarios_por_curso.items %}
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <span class="inline-flex w-3 h-3 rounded-full bg-blue-500"></span>
+                <h3 class="font-bold text-lg">{{ curso.nombre }}</h3>
+              </div>
+              <a href="{% url 'horario_curso' curso.id %}" class="text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg">Abrir</a>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm border-collapse">
+                <thead>
+                  <tr class="bg-white/10">
+                    <th class="p-2 text-left">Hora</th>
+                    {% for d in dias %}
+                      <th class="p-2 capitalize text-center">{{ d }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for b in bloques_disponibles %}
+                    <tr class="{% if forloop.counter|divisibleby:2 %}bg-white/5{% else %}bg-white/0{% endif %}">
+                      <td class="p-2 font-medium text-center">Bloque {{ b }}</td>
+                      {% for d in dias %}
+                        <td class="p-2 text-center min-w-[160px] h-24 align-middle">
+                          <div class="slot-celda h-24 flex items-center justify-center" data-curso="{{ curso.id }}" data-dia="{{ d }}" data-bloque="{{ b }}">
+                            {% for h in horarios %}
+                              {% if h.dia == d and h.bloque == b %}
+                                {% cycle 'from-rose-400/15 to-amber-300/10' 'from-fuchsia-400/15 to-rose-300/10' 'from-sky-400/15 to-cyan-300/10' 'from-emerald-400/15 to-lime-300/10' 'from-indigo-400/15 to-blue-300/10' 'from-violet-400/15 to-purple-300/10' 'from-teal-400/15 to-emerald-300/10' 'from-orange-400/15 to-yellow-300/10' as colorgrad silent %}
+                                <div id="card-{{ h.id }}" class="draggable-item inline-flex w-full h-20 items-center justify-center px-2 py-1 rounded-xl bg-gradient-to-br {{ colorgrad }} border border-white/10 ring-1 ring-white/10 shadow-sm shadow-black/10 cursor-move select-none relative" draggable="true" data-id="{{ h.id }}" data-materia="{{ h.materia.nombre }}" data-profesor="{{ h.profesor.nombre }}" data-aula="{{ h.aula.nombre }}">
+                                  <i class="fas fa-grip-lines absolute top-1 left-2 text-white/70 text-xs pointer-events-none"></i>
+                                  <div class="text-center pointer-events-none">
+                                    <div class="font-semibold text-white leading-tight drop-shadow">{{ h.materia.nombre }}</div>
+                                    <div class="text-xs text-gray-100/90 leading-tight">{{ h.profesor.nombre }}</div>
+                                    <div class="text-xs text-gray-200/90 leading-tight">{{ h.aula.nombre }}</div>
+                                  </div>
+                                </div>
+                              {% endif %}
+                            {% endfor %}
+                          </div>
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-gray-400">No hay horarios generados.</div>
+        {% endfor %}
+      </div>
+    </section>
   </div>
 
-  <!-- Scripts -->
   {% include 'frontend/components/scripts.html' %}
+  <script>
+    (function(){
+      const btn = document.getElementById('btn-guardar-cambios');
+      if (!btn) return;
+      btn.addEventListener('click', function(){
+        btn.disabled = true;
+        btn.textContent = 'Guardando...';
+        setTimeout(function(){
+          window.location.reload();
+        }, 150);
+      });
+    })();
+  </script>
 </body>
 </html>
