@@ -2,6 +2,8 @@
 
 Esta es la guía definitiva para actualizar tu proyecto en AWS. Sigue estos pasos **cada vez que hagas cambios**.
 
+> 💡 **Tip Pro:** Si tienes configurado **GitHub Actions**, el despliegue es **automático** al hacer `git push origin main`. No necesitas seguir la Parte 1 ni la Parte 2 manualmente a menos que el pipeline falle.
+
 ---
 
 ## 💻 PARTE 1: En tu PC (Local)
@@ -76,7 +78,7 @@ Si es la **primera vez** que despliegas (o borraste la base de datos), necesitas
     docker compose -f docker-compose.prod.yml exec web python manage.py migrate
     ```
 
-## 4. Configuración de HTTPS y Certificados (CRÍTICO)
+## 5. Configuración de HTTPS y Certificados (CRÍTICO)
 
 Para que HTTPS funcione, necesitas generar los certificados SSL. Hemos creado un script para facilitar esto.
 
@@ -138,7 +140,9 @@ docker compose -f docker-compose.prod.yml exec web python manage.py collectstati
 ```
 
 ### 4. Limpieza de Disco (Mantenimiento Proactivo)
-El pipeline de CI/CD ya limpia imágenes antiguas automáticamente, pero si necesitas liberar espacio manualmente:
+El pipeline de CI/CD ya limpia imágenes antiguas automáticamente y verifica el espacio antes de cada despliegue. Si el disco supera el **90%**, el sistema intentará una limpieza profunda (`prune -af`) antes de fallar.
+
+Si necesitas liberar espacio manualmente:
 
 ```bash
 # Eliminar imágenes huérfanas (dangling)

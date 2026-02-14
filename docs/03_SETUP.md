@@ -48,9 +48,13 @@
   ```bash
   python manage.py generar_horarios --limpiar-antes --validar-solo
   ```
-- **Correr Tests**:
+- **Correr Tests (Unitarios)**:
   ```bash
   pytest
+  ```
+- **Correr Tests de Carga (Locust)**:
+  ```bash
+  locust -f tests/load_test.py --host=http://localhost:8000
   ```
 
 ## Estructura de Tests

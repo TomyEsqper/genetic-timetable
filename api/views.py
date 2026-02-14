@@ -41,7 +41,42 @@ except Exception:
     AsyncResult = None
     ejecutar_generacion_horarios = None
 
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.models import User
+
 logger = logging.getLogger(__name__)
+
+
+class GuestTokenView(APIView):
+    """
+    Genera un token temporal para acceso de solo lectura o pruebas (Modo Demo).
+    No requiere credenciales.
+    """
+    permission_classes = [AllowAny]
+    throttle_scope = 'anon'
+
+    def post(self, request):
+        # Usamos un usuario dedicado para la demo
+        user, created = User.objects.get_or_create(
+            username='invitado_demo',
+            defaults={
+                'email': 'demo@ejemplo.com',
+                'is_active': True,
+                'is_staff': False,
+                'is_superuser': False
+            }
+        )
+        
+        # Generamos el token JWT manualmente
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': user.username,
+            'message': '¡Bienvenido al modo Demo! Este token expira en 30 minutos.',
+            'expires_in_minutes': 30
+        }, status=status.HTTP_200_OK)
 
 
 class ProfesorList(generics.ListAPIView):

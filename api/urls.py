@@ -18,6 +18,9 @@ urlpatterns = [
     # Endpoint de estado del sistema
     path('estado-sistema/', views.EstadoSistemaView.as_view(), name='api_estado_sistema'),
 
+    # Modo Demo / Invitado
+    path('auth/guest/', views.GuestTokenView.as_view(), name='api_guest_token'),
+
     # Motor de cálculo (Solver)
     path('engine/solve/', views.SolverView.as_view(), name='api_solver'),
 

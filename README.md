@@ -76,6 +76,47 @@ docker compose exec web python manage.py createsuperuser
 
 ---
 
+## 🧪 Testing y Calidad
+
+El proyecto incluye una estrategia de pruebas integral para asegurar la estabilidad del algoritmo y el rendimiento del servidor.
+
+### 1. Tests Unitarios e Integración (Pytest)
+Prueban la lógica del algoritmo, modelos y validadores.
+```bash
+# Ejecutar todos los tests
+docker compose exec web pytest
+
+# Ejecutar solo tests de validación
+docker compose exec web pytest horarios/tests/test_validaciones.py
+```
+
+### 2. Tests de Carga (Locust)
+Simulan múltiples coordinadores generando horarios simultáneamente para medir el estrés del servidor.
+```bash
+# Instalar locust localmente
+pip install locust
+
+# Ejecutar test de carga
+locust -f tests/load_test.py --host=http://localhost:8000
+```
+
+---
+
+## 👁️ Observabilidad y Mantenimiento
+
+### Monitoreo en Tiempo Real (Sentry)
+El sistema está integrado con **Sentry** para capturar errores tanto en la API como en las tareas asíncronas de Celery. 
+- Asegúrate de configurar `SENTRY_DSN` en tu archivo `.env`.
+- Incluye rastreo de performance para optimizar los tiempos de generación.
+
+### Mantenimiento Automático (CI/CD)
+El pipeline de **GitHub Actions** (`.github/workflows/ci_cd.yml`) gestiona:
+- 🚀 Despliegue automático a AWS EC2.
+- 🧹 Limpieza de imágenes Docker antiguas para evitar saturación de disco.
+- ⚡ Caché de capas para compilaciones rápidas.
+
+---
+
 ## 📡 Endpoints API Principales
 
 | Recurso | Método | Endpoint | Descripción |
@@ -90,7 +131,8 @@ docker compose exec web python manage.py createsuperuser
 
 Para facilitar la integración y pruebas, consulta el documento de ejemplos donde encontrarás **JSONs listos para copiar y pegar** en Postman:
 
-👉 **[Ver Ejemplos de API (Postman/JSON)](docs/API_EXAMPLES.md)**
+👉 **[Ver Ejemplos de API (Postman/JSON)](docs/API_EXAMPLES.md)**  
+👉 **[Guía de Configuración Postman (Automatización)](docs/POSTMAN_GUIDE.md)**
 
 Incluye payloads para:
 *   Autenticación
