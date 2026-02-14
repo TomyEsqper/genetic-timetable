@@ -1,347 +1,476 @@
-{% extends 'frontend/base_portal.html' %}
-
-{% block title %}Documentación | Genetic Timetable{% endblock %}
-
-{% block content %}
-<section class="py-12 px-4">
-    <div class="max-w-7xl mx-auto">
-        <div class="mb-12">
-            <h1 class="text-4xl font-bold mb-4">Documentación Técnica</h1>
-            <p class="text-gray-400">Todo lo que necesitas para integrar nuestro motor en tus aplicaciones.</p>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Sidebar Docs -->
-            <div class="lg:col-span-1 space-y-4">
-                <div class="glass p-6 rounded-2xl sticky top-24">
-                    <h3 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-6">Guías Rápidas</h3>
-                    <nav class="space-y-2">
-                        <a href="#autenticacion" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
-                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
-                                <i class="fas fa-lock w-5 text-center"></i> Autenticación JWT
-                            </span>
-                        </a>
-                        <a href="#endpoints" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
-                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
-                                <i class="fas fa-link w-5 text-center"></i> Endpoints API
-                            </span>
-                        </a>
-                        <a href="#algoritmo" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
-                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
-                                <i class="fas fa-microchip w-5 text-center"></i> El Algoritmo
-                            </span>
-                        </a>
-                        <a href="#fitness" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
-                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
-                                <i class="fas fa-balance-scale w-5 text-center"></i> Calidad (Fitness)
-                            </span>
-                        </a>
-                        <a href="#restricciones" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
-                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
-                                <i class="fas fa-tasks w-5 text-center"></i> Restricciones
-                            </span>
-                        </a>
-                        <a href="#curl" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
-                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
-                                <i class="fas fa-terminal w-5 text-center"></i> Ejemplos cURL
-                            </span>
-                        </a>
-                        <a href="#errores" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
-                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
-                                <i class="fas fa-exclamation-triangle w-5 text-center"></i> Errores comunes
-                            </span>
-                        </a>
-                        <a href="#cuerpos" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
-                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
-                                <i class="fas fa-file-code w-5 text-center"></i> Cuerpos JSON
-                            </span>
-                        </a>
-                        <a href="#faq" class="block p-3 rounded-xl hover:bg-primary-600/20 transition group">
-                            <span class="text-gray-400 group-hover:text-primary-400 flex items-center gap-3">
-                                <i class="fas fa-question-circle w-5 text-center"></i> FAQ Técnica
-                            </span>
-                        </a>
-                        <hr class="border-gray-800 my-4">
-                        <a href="/swagger/" target="_blank" class="block p-3 rounded-xl bg-primary-600 hover:bg-primary-700 transition text-center font-bold">
-                            <i class="fas fa-external-link-alt mr-2"></i> Swagger UI
-                        </a>
-                    </nav>
-                </div>
-            </div>
-
-            <!-- Content Docs -->
-            <div class="lg:col-span-2 space-y-12">
-                <!-- Auth Section -->
-                <div id="autenticacion" class="glass p-8 rounded-3xl">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-primary-400">
-                        <i class="fas fa-shield-alt"></i> Autenticación
-                    </h2>
-                    <p class="text-gray-400 mb-6 leading-relaxed">
-                        Nuestra API utiliza <b>JSON Web Tokens (JWT)</b> para asegurar cada petición. 
-                        Para obtener un token, debes enviar tus credenciales al endpoint de login.
-                    </p>
-                    <div class="bg-gray-900 rounded-xl p-4 font-mono text-sm border border-gray-800 overflow-x-auto">
-                        <span class="text-blue-400">POST</span> /api/token/<br>
-                        <span class="text-gray-500">// Request Body</span><br>
-                        {<br>
-                        &nbsp;&nbsp;"username": <span class="text-green-400">"tu_usuario"</span>,<br>
-                        &nbsp;&nbsp;"password": <span class="text-green-400">"tu_contraseña"</span><br>
-                        }
-                    </div>
-                </div>
-
-                <!-- Endpoints Section -->
-                <div id="endpoints" class="glass p-8 rounded-3xl">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-purple-400">
-                        <i class="fas fa-plug"></i> Principales Endpoints
-                    </h2>
-                    <div class="space-y-8">
-                        <div>
-                            <div class="flex items-center gap-3 mb-2">
-                                <span class="bg-blue-600 text-[10px] font-bold px-2 py-0.5 rounded">POST</span>
-                                <h4 class="font-bold text-gray-200">/api/horarios/generar/</h4>
-                            </div>
-                            <p class="text-sm text-gray-500 mb-4">Inicia el proceso del algoritmo genético de forma asíncrona.</p>
-                            <div class="bg-gray-900 rounded-xl p-4 font-mono text-xs border border-gray-800 mb-2">
-                                <span class="text-gray-500">// Payload Opcional</span><br>
-                                { <span class="text-green-400">"generaciones"</span>: <span class="text-orange-400">500</span>, <span class="text-green-400">"preview"</span>: <span class="text-orange-400">false</span> }
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="flex items-center gap-3 mb-2">
-                                <span class="bg-green-600 text-[10px] font-bold px-2 py-0.5 rounded">GET</span>
-                                <h4 class="font-bold text-gray-200">/api/estado-sistema/</h4>
-                            </div>
-                            <p class="text-sm text-gray-500 mb-4">Conteo de recursos (cursos, profes, materias) y factor de ocupación.</p>
-                        </div>
-
-                        <div>
-                            <div class="flex items-center gap-3 mb-2">
-                                <span class="bg-blue-600 text-[10px] font-bold px-2 py-0.5 rounded">POST</span>
-                                <h4 class="font-bold text-gray-200">/api/engine/solve/</h4>
-                            </div>
-                            <p class="text-sm text-gray-500 mb-4"><b>Stateless Solver</b>: Envía un JSON completo y recibe el horario resuelto sin guardar en BD.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- JSON Bodies (Structure Only) -->
-                <div id="cuerpos" class="glass p-8 rounded-3xl">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-blue-300">
-                        <i class="fas fa-file-code"></i> Cuerpos JSON (Estructura)
-                    </h2>
-                    <p class="text-xs text-gray-400 mb-4">Convenciones: &lt;string&gt;, &lt;int&gt;, &lt;bool&gt;, &lt;array&lt;T&gt;&gt;, objetos con claves simbólicas.</p>
-                    <div class="space-y-8">
-                        <div>
-                            <p class="text-sm font-bold mb-2 text-gray-200"><span class="bg-blue-600 px-2 py-0.5 rounded text-[10px] font-bold">POST</span> /api/engine/solve/</p>
-                            <div class="bg-gray-900 rounded-xl p-4 font-mono text-xs border border-gray-800 overflow-x-auto">
-<pre>{
-  "configuracion": {
-    "dias_clase": "&lt;string&gt;",
-    "bloques_por_dia": &lt;int&gt;,
-    "duracion_bloque": &lt;int&gt;,
-    "jornada": "&lt;string&gt;"
-  },
-  "materias": [
-    { "nombre": "&lt;string&gt;" }
-  ],
-  "profesores": [
-    {
-      "nombre": "&lt;string&gt;",
-      "materias_capaces": ["&lt;string&gt;", "..."],
-      "disponibilidad": [
-        { "dia": "&lt;string&gt;", "bloque_inicio": &lt;int&gt;, "bloque_fin": &lt;int&gt; }
-      ]
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Stack Técnico y Arquitectura</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root{
+      --bg:#0b0f19;--panel:rgba(255,255,255,.06);--panel2:rgba(255,255,255,.04);
+      --brd:rgba(255,255,255,.12);--muted:#9ca3af;--txt:#e5e7eb;
+      --accent1:rgba(16,185,129,.18);--accent2:rgba(245,158,11,.12);
+      --accentSolid:#10b981;--accentSolid2:#f59e0b;
+      --green:#34d399;--red:#f87171;--blue:#60a5fa;--yellow:#fde047
     }
-  ],
-  "cursos": [
-    {
-      "nombre": "&lt;string&gt;",
-      "grado": "&lt;string|int&gt;",
-      "plan_estudios": { "&lt;string&gt;": &lt;int&gt;, "...": &lt;int&gt; }
-    }
-  ]
-}</pre>
-                            </div>
-                        </div>
-                        <div>
-                            <p class="text-sm font-bold mb-2 text-gray-200"><span class="bg-blue-600 px-2 py-0.5 rounded text-[10px] font-bold">POST</span> /api/horarios/generar/</p>
-                            <div class="bg-gray-900 rounded-xl p-4 font-mono text-xs border border-gray-800 overflow-x-auto">
-<pre>{
-  "semilla": &lt;int&gt;,
-  "generaciones": &lt;int&gt;,
-  "paciencia": &lt;int&gt;,
-  "preview": &lt;bool&gt;,
-  "async": &lt;bool&gt;
-}</pre>
-                            </div>
-                        </div>
-                        <div>
-                            <p class="text-sm font-bold mb-2 text-gray-200"><span class="bg-blue-600 px-2 py-0.5 rounded text-[10px] font-bold">POST</span> /api/token/</p>
-                            <div class="bg-gray-900 rounded-xl p-4 font-mono text-xs border border-gray-800 overflow-x-auto">
-<pre>{
-  "username": "&lt;string&gt;",
-  "password": "&lt;string&gt;"
-}</pre>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Fitness Section -->
-                <div id="fitness" class="glass p-8 rounded-3xl">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-yellow-400">
-                        <i class="fas fa-balance-scale"></i> Función de Fitness
-                    </h2>
-                    <p class="text-gray-400 text-sm mb-6 leading-relaxed">
-                        La "calidad" de un horario se calcula mediante una suma ponderada de objetivos (0.0 a 100.0):
-                    </p>
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                            <span class="text-gray-300">Minimización de Huecos (Estudiantes)</span>
-                            <span class="text-primary-400 font-bold">40%</span>
-                        </div>
-                        <div class="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                            <span class="text-gray-300">Distribución Semanal Equilibrada</span>
-                            <span class="text-purple-400 font-bold">30%</span>
-                        </div>
-                        <div class="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                            <span class="text-gray-300">Consecutividad Pedagógica</span>
-                            <span class="text-orange-400 font-bold">20%</span>
-                        </div>
-                        <div class="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                            <span class="text-gray-300">Compactibilidad Docente</span>
-                            <span class="text-green-400 font-bold">10%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Algorithm Section -->
-                <div id="algoritmo" class="glass p-8 rounded-3xl">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-orange-400">
-                        <i class="fas fa-dna"></i> El Motor Evolutivo
-                    </h2>
-                    <p class="text-gray-400 leading-relaxed mb-6">
-                        El motor utiliza una población de horarios aleatorios que "evolucionan" a través de generaciones. 
-                        Basado en <b>Darwinismo computacional</b>, seleccionamos los mejores especímenes para cruzarlos y mutarlos.
-                    </p>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
-                            <h5 class="font-bold text-sm mb-2 text-primary-400">Población</h5>
-                            <p class="text-xs text-gray-500">Iniciamos con 100 horarios base generados al azar.</p>
-                        </div>
-                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
-                            <h5 class="font-bold text-sm mb-2 text-purple-400">Crossover</h5>
-                            <p class="text-xs text-gray-500">Mezclamos genes de dos horarios exitosos.</p>
-                        </div>
-                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
-                            <h5 class="font-bold text-sm mb-2 text-orange-400">Mutación</h5>
-                            <p class="text-xs text-gray-500">Cambiamos slots al azar para evitar óptimos locales.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Restricciones Section -->
-                <div id="restricciones" class="glass p-8 rounded-3xl">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-red-400">
-                        <i class="fas fa-shield-virus"></i> Reglas de Negocio
-                    </h2>
-                    <div class="space-y-6">
-                        <div class="flex gap-4">
-                            <div class="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0">
-                                <i class="fas fa-ban"></i>
-                            </div>
-                            <div>
-                                <h5 class="font-bold">Hard Constraints (Obligatorias)</h5>
-                                <p class="text-sm text-gray-500">Conflictos que el motor <b>jamás</b> permitirá, como un profesor en dos lugares al mismo tiempo.</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-4">
-                            <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">
-                                <i class="fas fa-feather"></i>
-                            </div>
-                            <div>
-                                <h5 class="font-bold">Soft Constraints (Deseables)</h5>
-                                <p class="text-sm text-gray-500">Preferencias que el motor intentará cumplir, como evitar "huecos" en el horario de los alumnos.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- cURL Examples -->
-                <div id="curl" class="glass p-8 rounded-3xl">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-primary-300">
-                        <i class="fas fa-terminal"></i> Ejemplos cURL
-                    </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-xs">
-                        <div class="bg-black/40 p-4 rounded-2xl border border-white/5">
-                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-2">Token (Demo)</p>
-                            <pre class="text-gray-200 whitespace-pre-wrap">curl -X POST http://127.0.0.1:8000/api/auth/guest/</pre>
-                        </div>
-                        <div class="bg-black/40 p-4 rounded-2xl border border-white/5">
-                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-2">Estado del Sistema</p>
-                            <pre class="text-gray-200 whitespace-pre-wrap">curl -H "Authorization: Bearer &lt;TOKEN&gt;" http://127.0.0.1:8000/api/estado-sistema/</pre>
-                        </div>
-                        <div class="bg-black/40 p-4 rounded-2xl border border-white/5">
-                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-2">Generar (preview)</p>
-                            <pre class="text-gray-200 whitespace-pre-wrap">curl -X POST http://127.0.0.1:8000/api/generar-horario/ ^
--H "Content-Type: application/json" ^
--H "Authorization: Bearer &lt;TOKEN&gt;" ^
--d "{ \\"generaciones\\": 100, \\"preview\\": true }"</pre>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Errores Comunes -->
-                <div id="errores" class="glass p-8 rounded-3xl">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-red-300">
-                        <i class="fas fa-exclamation-triangle"></i> Errores comunes
-                    </h2>
-                    <div class="space-y-4 text-sm">
-                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
-                            <p class="font-bold text-gray-200 mb-1">401 Unauthorized</p>
-                            <p class="text-gray-500">Token ausente o expirado. Renueva el token o usa el modo demo.</p>
-                        </div>
-                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
-                            <p class="font-bold text-gray-200 mb-1">400 Bad Request</p>
-                            <p class="text-gray-500">Payload inválido. Verifica los tipos y campos obligatorios.</p>
-                        </div>
-                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
-                            <p class="font-bold text-gray-200 mb-1">409 Conflict</p>
-                            <p class="text-gray-500">No se puede publicar por conflictos de aula o profesor. Revisa validaciones.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- FAQ Section -->
-                <div id="faq" class="glass p-8 rounded-3xl">
-                    <h2 class="text-2xl font-bold mb-8 flex items-center gap-3 text-green-400">
-                        <i class="fas fa-question-circle"></i> Preguntas Frecuentes
-                    </h2>
-                    <div class="space-y-6">
-                        <details class="group bg-white/5 rounded-2xl border border-white/5">
-                            <summary class="p-6 cursor-pointer font-bold flex justify-between items-center list-none">
-                                ¿Cuánto tiempo tarda en generar un horario?
-                                <i class="fas fa-chevron-down group-open:rotate-180 transition"></i>
-                            </summary>
-                            <div class="px-6 pb-6 text-gray-400 text-sm">
-                                Depende de la complejidad. Para una institución de 30 grupos y 50 profesores, suele tardar entre 2 y 5 segundos en alcanzar una convergencia del 98%.
-                            </div>
-                        </details>
-                        <details class="group bg-white/5 rounded-2xl border border-white/5">
-                            <summary class="p-6 cursor-pointer font-bold flex justify-between items-center list-none">
-                                ¿Puedo integrar esto con Google Calendar?
-                                <i class="fas fa-chevron-down group-open:rotate-180 transition"></i>
-                            </summary>
-                            <div class="px-6 pb-6 text-gray-400 text-sm">
-                                Sí, nuestra API devuelve los resultados en formato JSON compatible con el estándar iCal, facilitando la sincronización externa.
-                            </div>
-                        </details>
-                    </div>
-                </div>
-            </div>
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;margin:0;background:radial-gradient(1200px 600px at 20% -10%,var(--accent1),transparent),radial-gradient(1000px 500px at 110% 10%,var(--accent2),transparent),var(--bg);color:var(--txt)}
+    .container{max-width:1100px;margin:0 auto;padding:28px}
+    .hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 22px;border:1px solid var(--brd);background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(245,158,11,.10));border-radius:18px}
+    .hero-title{font-size:26px;font-weight:800;letter-spacing:.3px;color:#f3f4f6}
+    .hero-sub{opacity:.9}
+    .badges{display:flex;flex-wrap:wrap;gap:8px}
+    .badge{padding:6px 10px;border:1px solid var(--brd);background:var(--panel);border-radius:999px;font-size:12px}
+    .nav{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
+    .nav a{display:inline-block;padding:8px 12px;border:1px solid var(--brd);background:var(--panel2);border-radius:10px;color:var(--txt);text-decoration:none;transition:background .18s ease, transform .18s ease}
+    .nav a:hover{background:var(--panel);transform:translateY(-1px)}
+    .section{margin-top:22px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+    .card{background:var(--panel);border:1px solid var(--brd);border-radius:14px;padding:16px;transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease}
+    .card:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.28);border-color:rgba(16,185,129,.35)}
+    a{color:var(--txt);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .h2{font-size:18px;font-weight:700;margin:0 0 8px}
+    .p{opacity:.92;line-height:1.6;margin:6px 0}
+    .chips{margin:8px 0}
+    .chip{display:inline-block;border:1px solid var(--brd);background:var(--panel2);border-radius:999px;padding:2px 10px;margin:3px 6px 0 0;font-size:12px}
+    ul{margin:10px 0 0 18px}
+    li{margin:6px 0}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    .kbd{font-family:inherit;border:1px solid var(--brd);background:var(--panel2);border-radius:6px;padding:2px 6px}
+    .endpoint{background:var(--panel);border:1px solid var(--brd);border-radius:10px;padding:10px;margin:6px 0}
+    .endpoint .method{display:inline-block;font-weight:700;margin-right:8px}
+    .method.get{color:var(--green)}
+    .method.post{color:var(--accentSolid2)}
+    .muted{color:var(--muted)}
+    .footer{margin-top:24px;padding:14px;border-top:1px solid var(--brd);opacity:.8;text-align:center;font-size:14px}
+    .icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,rgba(16,185,129,.25),rgba(245,158,11,.2));margin-right:8px}
+    .title{display:flex;align-items:center;margin:0 0 8px;font-weight:800}
+    .cta{display:inline-block;padding:10px 14px;border-radius:12px;text-decoration:none}
+    .cta.primary{background:var(--accentSolid);color:#031b13;border:1px solid rgba(255,255,255,.18);box-shadow:0 8px 20px rgba(16,185,129,.25);transition:transform .2s ease, box-shadow .2s ease}
+    .cta.primary:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(16,185,129,.3)}
+    .cta.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--brd)}
+    .reveal{opacity:0;transform:translateY(6px);transition:opacity .4s ease, transform .4s ease}
+    .reveal.show{opacity:1;transform:none}
+    .fab{position:fixed;right:22px;bottom:22px;z-index:50}
+    .fab a{padding:12px 16px;border-radius:999px}
+  </style>
+</head>
+<body>
+  <div class="container" style="display:grid;grid-template-columns:260px 1fr;gap:18px">
+    <aside style="position:sticky;top:18px;height:max-content">
+      <div class="card" style="padding:14px">
+        <div class="title" style="margin-bottom:6px"><span class="icon">📚</span>Documentación</div>
+        <nav id="side-nav" class="nav" style="flex-direction:column;gap:6px;margin:0">
+          <a href="#inicio">🏁 Inicio</a>
+          <a href="#acciones">⚡ Acciones rápidas</a>
+          <a href="#guia">🧭 Cómo empezar</a>
+          <a href="#arquitectura">🏛️ Arquitectura</a>
+          <a href="#backend">⚙️ Backend</a>
+          <a href="#frontend">🖱️ Frontend</a>
+          <a href="#datos">🗃️ Datos</a>
+          <a href="#infra">🧱 Infra</a>
+          <a href="#cicd">🚀 CI/CD</a>
+          <a href="#endpoints">🔗 Endpoints</a>
+          <a href="#aws">☁️ AWS</a>
+          <a href="#postman">📮 Postman</a>
+          <a href="#db">🗄️ Base de datos</a>
+          <a href="#entornos">🌗 Entornos</a>
+          <a href="#seguridad">🔒 Seguridad</a>
+          <a href="#troubleshooting">🛠️ Troubleshooting</a>
+          <a href="#devtools">🧰 DevTools</a>
+          <a href="/dashboard/horarios/">⬅️ Volver al Dashboard</a>
+        </nav>
+      </div>
+    </aside>
+    <main>
+      <div id="inicio" class="hero reveal">
+        <div>
+          <div class="hero-title">Plataforma de Horarios • Stack Técnico</div>
+          <div class="hero-sub">Arquitectura clara, validaciones fuertes y una UX pensada para coordinar.</div>
+          <div class="badges" style="margin-top:10px">
+            <span class="badge">Django 5</span>
+            <span class="badge">DRF</span>
+            <span class="badge">Celery</span>
+            <span class="badge">SQLite</span>
+            <span class="badge">Docker</span>
+            <span class="badge">GitHub Actions</span>
+          </div>
         </div>
+        <div class="badges">
+          <a href="/dashboard/horarios/" class="cta primary">Ir al Dashboard</a>
+          <a href="/validar/" class="cta ghost">Validar datos</a>
+          <a href="/swagger/" class="cta ghost">Abrir Swagger</a>
+        </div>
+      </div>
+
+      <div id="acciones" class="section">
+        <div class="grid">
+          <a class="card reveal" href="/dashboard/horarios/" style="text-decoration:none">
+            <div class="title"><span class="icon">📅</span>Ver todos los horarios</div>
+            <div class="p">Explora la grilla completa por curso, con drag & drop y validaciones.</div>
+          </a>
+          <a class="card reveal" href="/validar/" style="text-decoration:none">
+            <div class="title"><span class="icon">✅</span>Validar datos maestros</div>
+            <div class="p">Revisa disponibilidad de profesores y materias sin asignación.</div>
+          </a>
+          <a class="card reveal" href="/swagger/" style="text-decoration:none">
+            <div class="title"><span class="icon">🧾</span>Documentación API</div>
+            <div class="p">Consulta y prueba endpoints REST desde Swagger UI.</div>
+          </a>
+          <a class="card reveal" href="/cursos/" style="text-decoration:none">
+            <div class="title"><span class="icon">🏷️</span>Lista de cursos</div>
+            <div class="p">Explora cursos paginados para ubicar horarios o exportar.</div>
+          </a>
+          <a class="card reveal" href="/profesores/" style="text-decoration:none">
+            <div class="title"><span class="icon">👩‍🏫</span>Lista de profesores</div>
+            <div class="p">Navega la disponibilidad y horarios por docente.</div>
+          </a>
+        </div>
+      </div>
+
+      <div id="guia" class="section">
+        <div class="card reveal">
+          <div class="title"><span class="icon">🧭</span>Cómo empezar (5 pasos rápidos)</div>
+          <ol style="margin:10px 0 0 18px;line-height:1.7">
+            <li>Ir a <strong>Validar datos</strong> para detectar faltantes: <span class="mono">/validar/</span></li>
+            <li><strong>Generar horarios</strong> desde el panel o script, según entorno.</li>
+            <li>Revisar el <strong>Dashboard</strong>: <span class="mono">/dashboard/horarios/</span></li>
+            <li>Ajustar manualmente con <strong>arrastrar/soltar</strong> (verde permitido, rojo bloqueado).</li>
+            <li><strong>Exportar</strong> por curso en PDF: <span class="mono">/pdf/curso/&lt;id&gt;/</span></li>
+          </ol>
+        </div>
+      </div>
+    <div class="section" id="arquitectura">
+      <div class="grid">
+        <div class="card reveal">
+          <div class="title"><span class="icon">🏛️</span>Arquitectura</div>
+          <div class="p">Hexagonal con capas separadas. Dominio, aplicación e infraestructura con responsabilidades claras y testables.</div>
+          <ul>
+            <li>Dominio y validaciones: <span class="mono">horarios/domain/validators/</span></li>
+            <li>Servicios de aplicación: <span class="mono">horarios/application/services/</span></li>
+            <li>Adaptadores y exportación: <span class="mono">horarios/infrastructure/adapters/</span></li>
+          </ul>
+        </div>
+        <div class="card reveal">
+          <div class="title"><span class="icon">🧠</span>Algoritmo</div>
+          <div class="p">Demand-First con estructuras O(1) y reglas duras. Intercambios atómicos garantizan consistencia al mover bloques.</div>
+          <ul>
+            <li>Servicio: <span class="mono">GeneradorDemandFirst</span></li>
+            <li>Reglas de negocio centralizadas</li>
+          </ul>
+        </div>
+      </div>
     </div>
-</section>
-{% endblock %}
+
+    <div class="section" id="backend">
+      <div class="grid">
+        <div class="card reveal">
+          <div class="title"><span class="icon">⚙️</span>Backend</div>
+          <div class="chips">
+            <span class="chip">Django 5</span><span class="chip">DRF</span><span class="chip">Swagger</span><span class="chip">Celery</span><span class="chip">xhtml2pdf</span>
+          </div>
+          <ul>
+            <li>API documentada en <span class="mono">/swagger/</span></li>
+            <li>Exportación PDF por curso</li>
+            <li>Tareas en Celery con fallback síncrono</li>
+          </ul>
+        </div>
+        <div class="card reveal">
+          <div class="title"><span class="icon">🧪</span>Validaciones</div>
+          <div class="p">Precondiciones y reglas duras verificadas antes y durante la generación.</div>
+          <ul>
+            <li>Diagnóstico en <span class="mono">/validar/</span></li>
+            <li>Suite de pruebas enfocada en negocio</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" id="frontend">
+      <div class="grid">
+        <div class="card reveal">
+          <div class="title"><span class="icon">🖱️</span>Frontend</div>
+          <div class="chips">
+            <span class="chip">HTML</span><span class="chip">JS</span><span class="chip">Estilos propios</span>
+          </div>
+          <ul>
+            <li>Arrastrar/soltar con prevalidación visual</li>
+            <li>Persistencia vía AJAX a <span class="mono">/mover-horario-ajax/</span></li>
+            <li>Colores calmados y accesibilidad</li>
+          </ul>
+        </div>
+        <div class="card reveal">
+          <div class="title"><span class="icon">🧭</span>UX</div>
+          <ul>
+            <li>Verde: drop permitido</li>
+            <li>Rojo: conflicto de profesor o bloque ocupado</li>
+            <li>Mensajes de éxito/error no intrusivos</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" id="datos">
+      <div class="grid">
+        <div class="card reveal">
+          <div class="title"><span class="icon">🗃️</span>Datos y Concurrencia</div>
+          <div class="chips">
+            <span class="chip">SQLite</span><span class="chip">Transacciones</span><span class="chip">Índices</span>
+          </div>
+          <ul>
+            <li>Swaps protegidos por <span class="mono">transaction.atomic()</span></li>
+            <li>Timeouts ampliados ante bloqueos</li>
+          </ul>
+        </div>
+        <div class="card reveal">
+          <div class="title"><span class="icon">📊</span>Reportes</div>
+          <ul>
+            <li>Exportación CSV/PDF</li>
+            <li>Estadísticas de horarios</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" id="infra">
+      <div class="grid">
+        <div class="card reveal">
+          <div class="title"><span class="icon">🧱</span>Infraestructura</div>
+          <div class="chips">
+            <span class="chip">Docker</span><span class="chip">Nginx</span><span class="chip">HTTPS opcional</span>
+          </div>
+          <ul>
+            <li>Despliegue simple y reproducible</li>
+            <li>Build local de imágenes</li>
+          </ul>
+        </div>
+        <div class="card reveal">
+          <div class="title"><span class="icon">🔐</span>Seguridad</div>
+          <ul>
+            <li>CSRF en movimientos AJAX</li>
+            <li>Rutas de administración aislables</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" id="cicd">
+      <div class="grid">
+        <div class="card reveal">
+          <div class="title"><span class="icon">🚀</span>CI/CD y Calidad</div>
+          <div class="chips">
+            <span class="chip">GitHub Actions</span><span class="chip">Pytest</span>
+          </div>
+          <ul>
+            <li>26 tests clave pasando</li>
+            <li>Warnings controlados en entorno de test</li>
+          </ul>
+        </div>
+        <div class="card reveal">
+          <div class="title"><span class="icon">🧭</span>Guías</div>
+          <ul>
+            <li>Endpoints documentados</li>
+            <li>Estrategias de migración y despliegue</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" id="endpoints">
+      <div class="card reveal">
+        <div class="title"><span class="icon">🔗</span>Endpoints útiles</div>
+        <div class="endpoint"><span class="method get">GET</span> <span class="mono">/swagger/</span> Documentación interactiva</div>
+        <div class="endpoint"><span class="method get">GET</span> <span class="mono">/dashboard/horarios/</span> Vista general de horarios</div>
+        <div class="endpoint"><span class="method get">GET</span> <span class="mono">/validar/</span> Diagnóstico de datos maestros</div>
+        <div class="endpoint"><span class="method get">GET</span> <span class="mono">/pdf/curso/&lt;id&gt;/</span> Exportación PDF por curso</div>
+        <div class="muted" style="margin-top:8px">Sugerencia: usa <span class="kbd">Ctrl</span>+<span class="kbd">Click</span> para abrir en nueva pestaña.</div>
+      </div>
+    </div>
+
+      <div class="section" id="aws">
+        <div class="grid">
+          <div class="card reveal">
+            <div class="title"><span class="icon">☁️</span>AWS • Despliegue</div>
+            <div class="chips"><span class="chip">EC2 t3.micro</span><span class="chip">Ubuntu 24.04</span><span class="chip">Docker Compose</span><span class="chip">Nginx</span></div>
+            <ul>
+              <li>Instancia: t3.micro, Ubuntu 24.04, protección contra terminación activada</li>
+              <li>Puertos: 22, 80, 443 en el Security Group</li>
+              <li>HTTPS opcional con Nginx y certificados locales</li>
+              <li>Imágenes Docker construidas localmente y subidas a Docker Hub</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="title"><span class="icon">💸</span>Estrategia de costo</div>
+            <ul>
+              <li>Modo bajo costo: detener instancia cuando no se usa</li>
+              <li>Monitoreo detallado desactivado por costo</li>
+              <li>Limpieza mensual de imágenes: <span class="mono">docker system prune -af</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="postman">
+        <div class="grid">
+          <div class="card reveal">
+            <div class="title"><span class="icon">📮</span>Postman • Importar API</div>
+            <ul>
+              <li>Exporta OpenAPI desde <span class="mono">/swagger/?format=openapi</span></li>
+              <li>Importa el JSON en Postman como colección</li>
+              <li>Autenticación: <span class="mono">Authorization: Bearer &lt;token&gt;</span></li>
+              <li>Obtén token en <span class="mono">/api/token/</span> y refresca en <span class="mono">/api/token/refresh/</span></li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="title"><span class="icon">🔑</span>Flujo de autenticación</div>
+            <ul>
+              <li>Credenciales via POST: <span class="mono">{\"username\",\"password\"}</span></li>
+              <li>Usa el access token en el header para llamadas DRF</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="db">
+        <div class="grid">
+          <div class="card reveal">
+            <div class="title"><span class="icon">🗄️</span>Base de datos</div>
+            <div class="chips"><span class="chip">SQLite</span><span class="chip">PostgreSQL (opcional)</span></div>
+            <ul>
+              <li>Producción: SQLite con timeout ampliado y swaps atómicos</li>
+              <li>Opcional PostgreSQL: define <span class="mono">DB_ENGINE=django.db.backends.postgresql</span> y credenciales</li>
+              <li>Variables: <span class="mono">DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT</span></li>
+              <li>Migraciones: <span class="mono">python manage.py migrate</span></li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="title"><span class="icon">🔧</span>Optimización</div>
+            <ul>
+              <li>Uso de <span class="mono">select_related/prefetch_related</span> para evitar N+1</li>
+              <li>Índices en claves de consulta frecuentes</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="entornos">
+        <div class="grid">
+          <div class="card reveal">
+            <div class="title"><span class="icon">🌗</span>Entornos</div>
+            <ul>
+              <li>Separación Dev/Prod estricta</li>
+              <li>Variables de entorno en <span class="mono">.env</span> del servidor</li>
+              <li>No activar <span class="mono">DEBUG=True</span> en producción</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="title"><span class="icon">🧩</span>.env requerido</div>
+            <ul>
+              <li><span class="mono">PROD_IP</span>, <span class="mono">DJANGO_DEBUG=False</span>, credenciales BD</li>
+              <li>Inyección por Docker Compose</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="seguridad">
+        <div class="grid">
+          <div class="card reveal">
+            <div class="title"><span class="icon">🔒</span>Seguridad</div>
+            <ul>
+              <li>CSRF en operaciones AJAX</li>
+              <li>HTTPS con Nginx y certificados locales</li>
+              <li>Admin protegible via variable de ruta</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="title"><span class="icon">🧱</span>Red</div>
+            <ul>
+              <li>Puertos abiertos: 22, 80, 443</li>
+              <li>Certificados montados en Nginx</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="troubleshooting">
+        <div class="grid">
+          <div class="card reveal">
+            <div class="title"><span class="icon">🛠️</span>Problemas comunes</div>
+            <ul>
+              <li>Nginx SSL ausente: error al iniciar si faltan certificados</li>
+              <li><span class="mono">database is locked</span>: incrementar timeout en SQLite</li>
+              <li>Espacio en disco: ejecutar <span class="mono">docker system prune -af</span></li>
+              <li>HTTPS inaccesible: verificar <span class="mono">PROD_IP</span> y coincidencia en el certificado</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="title"><span class="icon">📦</span>Despliegue</div>
+            <ul>
+              <li>Construir imágenes localmente y publicar en Docker Hub</li>
+              <li>Levantar con <span class="mono">docker compose -f docker-compose.prod.yml up -d</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="devtools">
+        <div class="grid">
+          <div class="card reveal">
+            <div class="title"><span class="icon">🧰</span>Herramientas de desarrollo</div>
+            <ul>
+              <li>Runserver: <span class="mono">python manage.py runserver</span></li>
+              <li>Migraciones: <span class="mono">python manage.py makemigrations</span> y <span class="mono">migrate</span></li>
+              <li>Pruebas: <span class="mono">pytest</span> con foco en reglas de negocio</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="title"><span class="icon">🧪</span>Pruebas clave</div>
+            <ul>
+              <li>Integridad de datos</li>
+              <li>Reglas de negocio</li>
+              <li>Flujo del sistema completo</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    <div class="footer">© Plataforma de Horarios — Arquitectura limpia y UX clara</div>
+    </main>
+  </div>
+  <div class="fab">
+    <a href="/dashboard/horarios/" class="cta primary">Volver al Dashboard</a>
+  </div>
+  <script>
+    document.querySelectorAll('a[href^="#"]').forEach(a=>{
+      a.addEventListener('click',e=>{
+        const id=a.getAttribute('href').slice(1);
+        const el=document.getElementById(id);
+        if(el){e.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});}
+      });
+    });
+    const navLinks=[...document.querySelectorAll('#side-nav a')];
+    const sections=navLinks.map(l=>document.getElementById(l.getAttribute('href').slice(1))).filter(Boolean);
+    const obs=new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{
+        const id=entry.target.id;
+        const link=navLinks.find(l=>l.getAttribute('href')==='#'+id);
+        if(link){
+          if(entry.isIntersecting){
+            navLinks.forEach(n=>n.style.background='var(--panel2)');
+            link.style.background='var(--panel)';
+          }
+        }
+      });
+    },{root:null,rootMargin:'-40% 0px -55% 0px',threshold:0.01});
+    sections.forEach(s=>obs.observe(s));
+    const reveals=[...document.querySelectorAll('.reveal')];
+    const obs2=new IntersectionObserver(es=>{
+      es.forEach(e=>{
+        if(e.isIntersecting){e.target.classList.add('show');obs2.unobserve(e.target);}
+      });
+    },{threshold:.1});
+    reveals.forEach(el=>obs2.observe(el));
+  </script>
+</body>
+</html>

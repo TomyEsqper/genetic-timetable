@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.shortcuts import redirect
 from rest_framework.authtoken import views as drf_views
 
 from rest_framework import permissions
@@ -46,7 +47,6 @@ import os
 urlpatterns = [
     path(os.environ.get('ADMIN_URL', 'admin/'), admin.site.urls),
 
-    # Frontend externo para el coordinador
     path('', include('frontend.urls')),
     path('api/', include('api.urls')),
     path('api-token-auth/', drf_views.obtain_auth_token),
